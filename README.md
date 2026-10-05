@@ -1,0 +1,1 @@
+# craft-stock-interface
