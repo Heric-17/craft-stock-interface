@@ -1,36 +1,50 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
-/node_modules
-/.pnp
-.pnp.js
+node_modules
+
+# build output
+dist
+dist-ssr
+*.local
 
 # testing
-/coverage
+coverage
 
-# next.js
-/.next/
-/out/
+# local env files
+.env
+.env.*
+!.env.example
+!.env.test
 
-# production
-/build
-
-# misc
+# editors
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
-*.pem
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# debug
+# logs
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# local env files
-.env*.local
-.env
-
-# vercel
-.vercel
+pnpm-debug.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
+
+# Internal working material, not published with the project: architecture notes,
+# the recut of the backend contract, the divergence lists, the v0 mockups and
+# the v0 export. All of it exists to build this frontend, none of it belongs in
+# the remote repository. Only README.md is versioned.
+*.md
+# Only the one at the root: the pattern above is anchored nowhere, so an
+# unanchored exception would also bring back docs/README.md.
+!/README.md
+
+docs/mockups/
+docs/v0-reference/

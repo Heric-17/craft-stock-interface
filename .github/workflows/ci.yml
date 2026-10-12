@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    env:
+      # The build inlines these, and the Vite config refuses to start without
+      # them. They are not secrets: the real values belong to the deployment.
+      VITE_API_URL: http://api.ci.local
+      VITE_COMPANY_NAME: CraftStock CI
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # The architecture rules of sections 5 and 18: an import that crosses a
+      # boundary fails here, not in review.
+      - name: Architecture
+        run: npm run arch
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
