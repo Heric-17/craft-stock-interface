@@ -57,7 +57,7 @@ export class InvalidDateValueError extends Error {
   }
 }
 
-interface BusinessDateTime {
+export interface BusinessDateTime {
   year: number;
   month: number;
   day: number;
@@ -113,7 +113,7 @@ function toDate(value: Date | string): Date {
   return date;
 }
 
-function readBusinessDateTime(date: Date): BusinessDateTime {
+export function readBusinessDateTime(date: Date): BusinessDateTime {
   const parts = new Map(
     BUSINESS_PARTS.formatToParts(date).map((part) => [part.type, part.value] as const),
   );

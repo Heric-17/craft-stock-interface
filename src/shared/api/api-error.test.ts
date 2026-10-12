@@ -23,7 +23,7 @@ const API = env.VITE_API_URL;
 async function failWith(body: Record<string, unknown>, status: number): Promise<ApiError> {
   server.use(http.post(`${API}/probe`, () => HttpResponse.json(body, { status })));
 
-  return (await request('/probe', { method: 'POST', body: {} }).catch(
+  return (await request('/probe', { method: 'POST', body: {}, public: true }).catch(
     (caught: unknown) => caught,
   )) as ApiError;
 }

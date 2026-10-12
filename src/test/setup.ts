@@ -3,6 +3,8 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 
+import { resetSession } from '@/shared/api/session';
+
 import { server } from './msw/server';
 
 beforeAll(() => {
@@ -13,6 +15,8 @@ beforeAll(() => {
 
 afterEach(() => {
   cleanup();
+  // The session is module state: one test's sign-in must not be the next one's.
+  resetSession();
   server.resetHandlers();
 });
 

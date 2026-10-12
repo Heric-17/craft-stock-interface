@@ -1,3 +1,6 @@
+import { formatMoney } from '@/shared/format';
+import { Money, parseDecimalString } from '@/shared/money';
+
 import type { ApiError } from './api-error';
 import type { DiscountAllocationReason } from './error-codes';
 
@@ -242,4 +245,71 @@ export function consumptionUnitLockedReason(error: ApiError): string | undefined
   return count === 1
     ? 'Uma ficha técnica usa este insumo nesta unidade. Remova essa linha para poder trocá-la.'
     : `${count} fichas técnicas usam este insumo nesta unidade. Remova essas linhas para poder trocá-la.`;
+}
+
+/**
+ * What goes under a field the API rejected. The reason lives in the English
+ * `constraints`, which are diagnostic and never shown, so the field only says
+ * that it was refused; the form-level sentence says what to do about it.
+ */
+export const FIELD_REJECTED_MESSAGE = 'Confira este campo.';
+
+/** An amount from `details`, a decimal string, written as money. */
+function amountFrom(value: string | undefined): string | undefined {
+  const decimal = parseDecimalString(value);
+
+  return decimal === null ? undefined : formatMoney(Money.parse(decimal));
+}
+
+/**
+ * The amounts of a discount that did not close, written under the sentence of
+ * its reason. Read from `expected` and `provided` as decimal strings and
+ * formatted through `Money`; never lifted out of the English message.
+ */
+export function discountAmountsSummary(error: ApiError): string | undefined {
+  const allocation = error.detailsFor('DISCOUNT_ALLOCATION');
+
+  if (allocation !== undefined) {
+    const expected = amountFrom(allocation.expected);
+    const provided = amountFrom(allocation.provided);
+
+    if (expected === undefined || provided === undefined) {
+      return undefined;
+    }
+
+    switch (allocation.reason) {
+      case 'SUM_MISMATCH':
+        return `Distribuído ${provided} de ${expected}.`;
+      case 'LINE_EXCEEDS_GROSS':
+        return `A linha vale ${expected} e recebeu ${provided}.`;
+      case 'DISCOUNT_EXCEEDS_GROSS':
+        return `As linhas valem ${expected} e o desconto é ${provided}.`;
+      default:
+        return undefined;
+    }
+  }
+
+  const pending = error.detailsFor('PENDING_DISCOUNT_ALLOCATION');
+
+  if (pending !== undefined) {
+    const expected = amountFrom(pending.expected);
+    const provided = amountFrom(pending.provided);
+
+    return expected === undefined || provided === undefined
+      ? undefined
+      : `Distribuído ${provided} de ${expected}.`;
+  }
+
+  return undefined;
+}
+
+/**
+ * The second line under {@link messageForError}: the numbers and the way out
+ * that only the typed `details` know — how many records block a delete, why a
+ * unit is locked, how much of a discount is still unattributed.
+ */
+export function errorDetail(error: ApiError): string | undefined {
+  return (
+    entityInUseSummary(error) ?? consumptionUnitLockedReason(error) ?? discountAmountsSummary(error)
+  );
 }

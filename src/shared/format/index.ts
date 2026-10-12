@@ -18,5 +18,12 @@ export {
   type QuantityInputScale,
 } from './parse-input';
 export { formatBasisPoints, formatMarginPercent, formatPercent } from './percent';
+export {
+  buildPeriodRange,
+  InvalidPeriodError,
+  type CivilDateRange,
+  type PeriodPreset,
+  type PeriodRange,
+} from './period';
 export { formatQuantity } from './quantity';
 export { baseUnitSymbol, majorUnitSymbol } from './unit-symbol';

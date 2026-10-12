@@ -1,14 +1,18 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+
+import { refreshSucceeds } from '@/test/auth';
+import { server } from '@/test/msw/server';
 
 import { Providers } from './providers';
 import { routes } from './router';
 
 /**
  * Mounts the real application: the same route table, the same providers, the
- * same shell. Only the history is in memory.
+ * same shell. Only the history is in memory. The session is restored over the
+ * network, answered by MSW.
  */
 function renderApp(initialPath = '/') {
   const router = createMemoryRouter(routes, { initialEntries: [initialPath] });
@@ -21,6 +25,11 @@ function renderApp(initialPath = '/') {
 }
 
 describe('application', () => {
+  // The shell is behind the guard: a session the browser still holds opens it.
+  beforeEach(() => {
+    server.use(refreshSucceeds());
+  });
+
   it('renders the shell with the installation name', async () => {
     renderApp();
 

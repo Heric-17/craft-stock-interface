@@ -2,8 +2,11 @@ import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
 
+import { useLogout, useSession } from '@/features/auth';
 import { env } from '@/shared/config/env';
 import { cn } from '@/shared/lib/cn';
+import { Button } from '@/shared/ui/button';
+import { showErrorToast } from '@/shared/ui/error-toast';
 
 /**
  * One navigation entry. The list is short on purpose: a section appears here
@@ -38,11 +41,14 @@ function navGroups(items: readonly NavItem[]): [string, NavItem[]][] {
  *
  * There is no company switcher and no plan under the name: one build serves
  * one installation, and the name comes from the environment. There is no role
- * under the user either, because there are no roles. The bell the mockups show
- * has nothing behind it and is not here.
+ * under the user either, because there are no roles: the e-mail is all there is
+ * to say about who is signed in. The bell the mockups show has nothing behind
+ * it and is not here.
  */
 export function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const session = useSession();
+  const logout = useLogout();
 
   return (
     <div className="bg-background flex min-h-screen">
@@ -110,8 +116,21 @@ export function AppShell() {
           ))}
         </nav>
 
-        <div className="border-sidebar-border border-t pt-4">
+        <div className="border-sidebar-border flex flex-col gap-1 border-t pt-4">
           <p className="px-3 text-sm font-semibold text-white">{env.VITE_COMPANY_NAME}</p>
+          {session.status === 'authenticated' ? (
+            <p className="text-sidebar-muted-foreground truncate px-3 text-xs">
+              {session.user.email}
+            </p>
+          ) : null}
+          <Button
+            variant="ghost"
+            disabled={logout.isPending}
+            onClick={() => logout.mutate(undefined, { onError: showErrorToast })}
+            className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground mt-1 w-full justify-start px-3"
+          >
+            {logout.isPending ? 'Saindo…' : 'Sair'}
+          </Button>
         </div>
       </aside>
 

@@ -195,7 +195,7 @@ export default tseslint.config(
 
   // The HTTP client is the module the restriction is about.
   {
-    files: ['src/shared/api/**', 'src/features/*/api/**'],
+    files: ['src/shared/api/**', 'src/features/*/api/**', 'src/test/**'],
     rules: {
       'no-restricted-imports': [
         'error',

@@ -1,0 +1,190 @@
+import { readBusinessDateTime } from './date-time';
+
+/**
+ * The window a query asks the API about.
+ *
+ * `from` is inclusive and `to` is **exclusive**, and both are instants carrying
+ * the offset of `America/Sao_Paulo` — `2026-01-01T00:00:00-03:00`, never a bare
+ * date. The API groups every total by the calendar of that zone, so a window
+ * cut anywhere else shifts a whole day of data in or out with no error to show
+ * for it.
+ *
+ * This lives in `shared/format` rather than `shared/lib` because working out
+ * the offset of a zone takes `Intl`, and `Intl` is allowed in one folder only.
+ * The browser's own zone never takes part: nothing below reads a local getter,
+ * and `Date` is used purely as a counter of milliseconds.
+ */
+export interface PeriodRange {
+  from: string;
+  to: string;
+}
+
+/**
+ * The presets cover calendar months, the current one included: "last 6 months"
+ * is this month and the five before it, the same six months a per-month chart
+ * draws.
+ */
+export type PeriodPreset = 'THIS_MONTH' | 'LAST_6_MONTHS' | 'LAST_12_MONTHS';
+
+/**
+ * Two calendar days as someone picks them in a date field, as `YYYY-MM-DD`.
+ * **Both ends are days to include**: picking 1 to 31 January means all of
+ * January, so the range handed to the API ends at the first instant of 1
+ * February.
+ */
+export interface CivilDateRange {
+  startDate: string;
+  endDate: string;
+}
+
+export class InvalidPeriodError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidPeriodError';
+  }
+}
+
+const MONTHS_IN_PRESET: Record<PeriodPreset, number> = {
+  THIS_MONTH: 1,
+  LAST_6_MONTHS: 6,
+  LAST_12_MONTHS: 12,
+};
+
+const MILLISECONDS_PER_MINUTE = 60_000;
+const MILLISECONDS_PER_DAY = 86_400_000;
+
+/** A calendar day with no instant attached. `month` runs from 1 to 12. */
+interface CivilDate {
+  year: number;
+  month: number;
+  day: number;
+}
+
+export function buildPeriodRange(
+  period: PeriodPreset | CivilDateRange,
+  now: Date = new Date(),
+): PeriodRange {
+  if (typeof period === 'string') {
+    const today = readBusinessDateTime(now);
+    const thisMonth: CivilDate = { year: today.year, month: today.month, day: 1 };
+
+    return {
+      from: startOfDay(addMonths(thisMonth, -(MONTHS_IN_PRESET[period] - 1))),
+      to: startOfDay(addMonths(thisMonth, 1)),
+    };
+  }
+
+  const start = parseCivilDate(period.startDate);
+  const end = parseCivilDate(period.endDate);
+
+  if (compareCivilDates(start, end) > 0) {
+    throw new InvalidPeriodError('The period ends before it starts.');
+  }
+
+  return { from: startOfDay(start), to: startOfDay(addDays(end, 1)) };
+}
+
+function parseCivilDate(value: string): CivilDate {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+
+  if (match === null) {
+    throw new InvalidPeriodError(`${value} is not a date written as YYYY-MM-DD.`);
+  }
+
+  const date: CivilDate = {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+  };
+
+  // `Date.UTC` rolls 30 February over into March instead of refusing it, so the
+  // day is read back and compared: only a date that survives the round trip
+  // exists on the calendar.
+  const roundTrip = new Date(Date.UTC(date.year, date.month - 1, date.day));
+
+  if (
+    roundTrip.getUTCFullYear() !== date.year ||
+    roundTrip.getUTCMonth() !== date.month - 1 ||
+    roundTrip.getUTCDate() !== date.day
+  ) {
+    throw new InvalidPeriodError(`${value} is not a day that exists.`);
+  }
+
+  return date;
+}
+
+function compareCivilDates(a: CivilDate, b: CivilDate): number {
+  return a.year - b.year || a.month - b.month || a.day - b.day;
+}
+
+function addMonths(date: CivilDate, months: number): CivilDate {
+  const total = date.year * 12 + (date.month - 1) + months;
+
+  return { year: Math.floor(total / 12), month: (total % 12) + 1, day: date.day };
+}
+
+/** Calendar arithmetic done on UTC fields, which have no zone to go wrong. */
+function addDays(date: CivilDate, days: number): CivilDate {
+  const moved = new Date(Date.UTC(date.year, date.month - 1, date.day + days));
+
+  return {
+    year: moved.getUTCFullYear(),
+    month: moved.getUTCMonth() + 1,
+    day: moved.getUTCDate(),
+  };
+}
+
+/**
+ * The wall clock of an instant in Sao Paulo, written as if it were UTC. The
+ * difference between this and the instant itself is the zone's offset.
+ */
+function wallClockAsUtc(instant: number): number {
+  const wall = readBusinessDateTime(new Date(instant));
+
+  return Date.UTC(wall.year, wall.month - 1, wall.day, Number(wall.hour), Number(wall.minute));
+}
+
+/** Milliseconds to add to an instant to get the wall clock. Negative in Brazil. */
+function offsetAt(instant: number): number {
+  const wholeMinute = Math.floor(instant / MILLISECONDS_PER_MINUTE) * MILLISECONDS_PER_MINUTE;
+
+  return wallClockAsUtc(wholeMinute) - wholeMinute;
+}
+
+/**
+ * The first instant of a calendar day, formatted with the offset in force at
+ * that instant.
+ *
+ * Midnight is not always the first instant of the day. When Brazil kept summer
+ * time the clocks jumped from 00:00 to 01:00, so on that day 00:00 never
+ * happened and the day began at 01:00 (`-02:00`). Searching the offsets on both
+ * sides of the day and keeping the earliest instant whose wall clock reads
+ * midnight handles that, and the fall-back day, with no table of transitions.
+ */
+function startOfDay(date: CivilDate): string {
+  const midnightAsUtc = Date.UTC(date.year, date.month - 1, date.day);
+  const offsetBefore = offsetAt(midnightAsUtc - MILLISECONDS_PER_DAY);
+  const offsetAfter = offsetAt(midnightAsUtc + MILLISECONDS_PER_DAY);
+
+  const midnights = [...new Set([offsetBefore, offsetAfter])]
+    .map((offset) => midnightAsUtc - offset)
+    .filter((instant) => wallClockAsUtc(instant) === midnightAsUtc)
+    .sort((a, b) => a - b);
+
+  // No instant reads midnight: the day began in the gap the clocks skipped, and
+  // the first instant of it is where midnight would have fallen on the old offset.
+  const first = midnights[0] ?? midnightAsUtc - offsetBefore;
+
+  return formatInstant(first);
+}
+
+function formatInstant(instant: number): string {
+  const offset = offsetAt(instant);
+  const wall = new Date(wallClockAsUtc(instant)).toISOString().slice(0, 19);
+  const sign = offset < 0 ? '-' : '+';
+  const offsetMinutes = Math.abs(offset) / MILLISECONDS_PER_MINUTE;
+  const hours = String(Math.floor(offsetMinutes / 60)).padStart(2, '0');
+  const minutes = String(offsetMinutes % 60).padStart(2, '0');
+
+  return `${wall}${sign}${hours}:${minutes}`;
+}

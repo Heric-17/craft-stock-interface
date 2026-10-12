@@ -72,6 +72,19 @@ export class ApiError extends Error {
     return error;
   }
 
+  /**
+   * The API answered successfully with a body that is not the documented
+   * shape. Nothing was recorded on the other side, so there is no `errorId`.
+   */
+  static unexpectedResponse(statusCode: number): ApiError {
+    return new ApiError({
+      statusCode,
+      code: 'UNEXPECTED_RESPONSE',
+      error: 'UnexpectedResponse',
+      message: 'The API answered with a body this client cannot read.',
+    });
+  }
+
   /** Nothing the user did caused this, and nothing they can do will fix it. */
   get isUnexpected(): boolean {
     return this.statusCode >= SERVER_ERROR_FLOOR || this.statusCode === 0;

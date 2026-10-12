@@ -12,7 +12,7 @@ import { ApiError, type ApiErrorBody } from './api-error';
  * session.
  *
  * The session layer — the in-memory access token and the single-flight
- * refresh — attaches here through {@link setAuthorization}, so this module
+ * refresh — attaches here through {@link configureSession}, so this module
  * stays free of any knowledge about how a session is obtained.
  */
 
@@ -26,18 +26,40 @@ export interface RequestOptions {
   formData?: FormData;
   query?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
+  /**
+   * The route needs no session: no bearer goes out, and a 401 is the answer to
+   * the request itself rather than a signal to renew the session. Login, the
+   * refresh and logout are the routes this is for — a wrong password must reach
+   * the form as `INVALID_CREDENTIALS`, not trigger a refresh nobody can satisfy.
+   */
+  public?: boolean;
 }
 
-type AuthorizationProvider = () => string | null;
+export interface SessionHandlers {
+  /** The current access token, or `null` when there is no session. */
+  getAccessToken: () => string | null;
+  /**
+   * Renews the session after a 401 and resolves with the access token to retry
+   * with. It receives the token the failed request carried, so it can tell a
+   * request that raced a renewal already done from one that needs a new one.
+   * Rejects when the session cannot be renewed.
+   */
+  refreshAccessToken: (rejectedToken: string | null) => Promise<string>;
+}
 
-let authorization: AuthorizationProvider = () => null;
+const NO_SESSION: SessionHandlers = {
+  getAccessToken: () => null,
+  refreshAccessToken: (_rejectedToken) => Promise.reject(new Error('No session is configured.')),
+};
+
+let session: SessionHandlers = NO_SESSION;
 
 /**
- * Hands the client a way to read the current access token. Called once, by the
- * session module; the token itself never lives here and never leaves memory.
+ * Hands the client its way into the session. Called once, by the session
+ * module; the token itself never lives here and never leaves memory.
  */
-export function setAuthorization(provider: AuthorizationProvider): void {
-  authorization = provider;
+export function configureSession(handlers: SessionHandlers): void {
+  session = handlers;
 }
 
 function buildUrl(path: string, query: RequestOptions['query']): string {
@@ -116,11 +138,14 @@ async function toApiError(response: Response): Promise<ApiError> {
   }
 }
 
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+async function send(
+  path: string,
+  options: RequestOptions,
+  token: string | null,
+): Promise<Response> {
   const { method = 'GET', body, formData, query, signal } = options;
 
   const headers = new Headers();
-  const token = authorization();
 
   if (token !== null) {
     headers.set('Authorization', `Bearer ${token}`);
@@ -132,10 +157,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     headers.set('Content-Type', 'application/json');
   }
 
-  let response: Response;
-
   try {
-    response = await fetch(buildUrl(path, query), {
+    return await fetch(buildUrl(path, query), {
       method,
       headers,
       // Not optional, and not only for `/auth/*`: the refresh token lives in an
@@ -156,6 +179,22 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     }
 
     throw ApiError.networkFailure(cause);
+  }
+}
+
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const isPublic = options.public === true;
+  const token = isPublic ? null : session.getAccessToken();
+
+  let response = await send(path, options, token);
+
+  // One renewal and one repeat, never a loop: a second 401 after a fresh token
+  // is an answer, not a reason to ask again. The repeat is safe to make because
+  // a 401 means the API refused the request before doing anything with it.
+  if (response.status === 401 && !isPublic) {
+    const renewedToken = await session.refreshAccessToken(token);
+
+    response = await send(path, options, renewedToken);
   }
 
   if (!response.ok) {

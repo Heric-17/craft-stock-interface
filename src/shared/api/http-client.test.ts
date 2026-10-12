@@ -6,7 +6,7 @@ import { server } from '@/test/msw/server';
 
 import { ApiError } from './api-error';
 import { messageForError } from './error-messages';
-import { request, setAuthorization } from './http-client';
+import { configureSession, request } from './http-client';
 
 const API = env.VITE_API_URL;
 
@@ -27,12 +27,18 @@ describe('http-client', () => {
       }),
     );
 
-    setAuthorization(() => 'token-de-acesso');
+    configureSession({
+      getAccessToken: () => 'token-de-acesso',
+      refreshAccessToken: () => Promise.reject(new Error('not expected')),
+    });
 
     try {
       await request('/users/me');
     } finally {
-      setAuthorization(() => null);
+      configureSession({
+        getAccessToken: () => null,
+        refreshAccessToken: () => Promise.reject(new Error('not expected')),
+      });
     }
 
     expect(authorization).toBe('Bearer token-de-acesso');
