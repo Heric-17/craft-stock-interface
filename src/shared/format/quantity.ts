@@ -30,15 +30,21 @@ const MAX_QUANTITY_PLACES = QUANTITY_DECIMAL_PLACES;
  * A number with no unit on it means nothing on this screen — 120 of flour is
  * either a fifth of a bag or a rounding error — so the unit is part of the
  * string and joined to it by a space that does not break.
+ *
+ * `exact` is for the echo under a field: it keeps the larger unit only when the
+ * conversion loses nothing at three places, and otherwise stays in the base
+ * unit. `1500,5 g` is not `1,501 kg` — one of those is what the person typed
+ * and the other is a gram more.
  */
-export function formatQuantity(quantity: Quantity): string {
+export function formatQuantity(quantity: Quantity, options: { exact?: boolean } = {}): string {
   const units = quantity.toScaledUnits();
   const absolute = absoluteUnits(units);
   const sign = units < 0n ? '-' : '';
   const factor = BigInt(majorUnitFactor(quantity.unit));
   const readInMajorUnit =
     hasMajorUnit(quantity.unit) &&
-    absolute >= BigInt(MAJOR_UNIT_THRESHOLD) * 10n ** BigInt(QUANTITY_DECIMAL_PLACES);
+    absolute >= BigInt(MAJOR_UNIT_THRESHOLD) * 10n ** BigInt(QUANTITY_DECIMAL_PLACES) &&
+    (options.exact !== true || absolute % factor === 0n);
 
   // Dividing by the factor keeps the same scale: a thousandth of a gram is a
   // millionth of a kilo, which is below what is shown and rounds once, here.

@@ -69,6 +69,30 @@ const NO_BROWSER_STORAGE = [
   },
 ];
 
+/**
+ * A colour belongs to the theme. A component asks for `bg-primary` and gets
+ * whatever the installation's variables say that is; a hexadecimal or a
+ * functional colour typed into a component is one the theme can no longer
+ * change. The palette lives in `src/index.css`, and only there.
+ */
+const NO_COLOR_LITERALS = [
+  {
+    selector: 'Literal[value=/#[0-9a-fA-F]{3,8}(?![0-9a-zA-Z_])/]',
+    message:
+      'No hexadecimal colour in a component. Use a theme token (bg-primary, text-muted-foreground).',
+  },
+  {
+    selector: 'Literal[value=/(^|[^a-zA-Z])(rgba?|hsla?|oklch|oklab|lab|lch)[(]/]',
+    message:
+      'No functional colour in a component. Use a theme token (bg-primary, text-muted-foreground).',
+  },
+  {
+    selector: 'TemplateElement[value.raw=/#[0-9a-fA-F]{3,8}(?![0-9a-zA-Z_])/]',
+    message:
+      'No hexadecimal colour in a component. Use a theme token (bg-primary, text-muted-foreground).',
+  },
+];
+
 export default tseslint.config(
   {
     ignores: ['dist', 'coverage', 'node_modules', 'docs/v0-reference', 'src/shared/api/generated'],
@@ -163,6 +187,22 @@ export default tseslint.config(
             },
           ],
         },
+      ],
+    },
+  },
+
+  // Components take their colours from the theme. Tests are left out: a fixture
+  // may spell a `#1048` that is not a colour.
+  {
+    files: ['src/**/*.tsx'],
+    ignores: ['src/**/*.{test,spec}.tsx', 'src/test/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...NO_FLOAT_PARSING,
+        ...NO_AD_HOC_FORMATTING,
+        ...NO_BROWSER_STORAGE,
+        ...NO_COLOR_LITERALS,
       ],
     },
   },

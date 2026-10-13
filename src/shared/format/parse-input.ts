@@ -14,6 +14,16 @@ import { Quantity, type ConsumptionUnit } from '@/shared/quantity';
 export type QuantityInputScale = 'base' | 'major';
 
 /**
+ * What a lone dot means when there is no comma to settle it. A money field
+ * reads it as grouping when the digits allow (`1.284` is one thousand two
+ * hundred and eighty-four, since an amount has no third decimal place). A
+ * quantity field has three decimal places, so `1.500` is one and a half and
+ * one thousand five hundred at once and no rule can tell them apart: it reads
+ * the dot as a decimal point, and the echo under the field says so.
+ */
+export type AmbiguousDot = 'grouping' | 'decimal';
+
+/**
  * Text a person typed, turned into the decimal string the value objects parse.
  *
  * pt-BR writes `1.284,70`: **the comma opens the decimals and the dot groups
@@ -27,10 +37,17 @@ export type QuantityInputScale = 'base' | 'major';
  * the person who typed it. `"1.500"` meaning one and a half is the one case
  * this reads as the other thing, and it reads it the way pt-BR writes it.
  *
+ * `ambiguousDot` moves that one case: a quantity field passes `'decimal'`,
+ * because there the collision is total (see {@link AmbiguousDot}). A dot
+ * repeated (`1.234.567`) is grouping in both, and so is any dot beside a comma.
+ *
  * Answers `null` for anything else — a letter, two commas, an empty field.
  * Nothing here throws: this is text a person is still typing.
  */
-export function normalizeDecimalInput(text: string): DecimalString | null {
+export function normalizeDecimalInput(
+  text: string,
+  ambiguousDot: AmbiguousDot = 'grouping',
+): DecimalString | null {
   const trimmed = text.replace(/[\s\u00a0]/g, '').replace(/^R\$/i, '');
 
   if (trimmed === '') {
@@ -39,7 +56,7 @@ export function normalizeDecimalInput(text: string): DecimalString | null {
 
   const normalized = trimmed.includes(',')
     ? trimmed.replace(/\./g, '').replace(',', '.')
-    : normalizeDotted(trimmed);
+    : normalizeDotted(trimmed, ambiguousDot);
 
   return parseDecimalString(normalized);
 }
@@ -61,8 +78,23 @@ export function parseMoneyInput(text: string): Money | null {
 }
 
 /**
+ * An amount a person typed into a field that takes whole cents: the same
+ * reading as {@link parseMoneyInput}, but text with a third decimal place is
+ * refused. What travels is a cent string, and a field that rounded `1,005`
+ * to `1,01` behind the person's back would show one amount and send another.
+ */
+export function parseCentsInput(text: string): Money | null {
+  const money = parseMoneyInput(text);
+
+  return money !== null && money.equals(money.roundToCents()) ? money : null;
+}
+
+/**
  * A quantity a person typed, in the unit the field is marked with: `"1,5"` in
  * a kg field is 1500 g, and the same text in a g field is 1,5 g.
+ *
+ * A lone dot is a decimal point here: `"1.500"` in a g field is 1,5 g. The
+ * field's echo shows that reading, and what is sent is what the echo showed.
  *
  * The conversion exists only here. What travels is always the base unit.
  */
@@ -71,7 +103,7 @@ export function parseQuantityInput(
   unit: ConsumptionUnit,
   scale: QuantityInputScale = 'base',
 ): Quantity | null {
-  const decimal = normalizeDecimalInput(text);
+  const decimal = normalizeDecimalInput(text, 'decimal');
 
   if (decimal === null) {
     return null;
@@ -101,6 +133,11 @@ export function parseBasisPointsInput(text: string): number | null {
  */
 const GROUPED_THOUSANDS = /^-?[1-9]\d{0,2}(\.\d{3})+$/;
 
-function normalizeDotted(text: string): string {
-  return GROUPED_THOUSANDS.test(text) ? text.replace(/\./g, '') : text;
+/** More than one dot can only be grouping, whichever way a single one is read. */
+const REPEATED_GROUPING = /^-?[1-9]\d{0,2}(\.\d{3}){2,}$/;
+
+function normalizeDotted(text: string, ambiguousDot: AmbiguousDot): string {
+  const pattern = ambiguousDot === 'grouping' ? GROUPED_THOUSANDS : REPEATED_GROUPING;
+
+  return pattern.test(text) ? text.replace(/\./g, '') : text;
 }

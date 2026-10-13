@@ -1,23 +1,30 @@
-import type { RouteObject } from 'react-router';
-
+import type { ComponentType } from 'react';
+import { Navigate, type RouteObject } from 'react-router';
 import { LoginPage, RequireAuth } from '@/features/auth';
-
 import { AppShell } from './app-shell';
-import { HomePage } from './pages/home-page';
+import {
+  ActivityPage,
+  CompositeProductsPage,
+  InvoiceImportPage,
+  MaterialsPage,
+  SalesPage,
+  SettingsPage,
+  ShortagesPage,
+  SpendingPage,
+} from './lazy-pages';
+import { HOME_PATH, NAV, type NavEntry } from './navigation';
 import { NotFoundPage } from './pages/not-found-page';
 import { RouteErrorBoundary } from './route-error-boundary';
-
-/**
- * The route table, exported as data so the application and the tests mount the
- * same thing — one through the browser's history, the other through an
- * in-memory one.
- *
- * Feature routes are loaded on demand as they are built (`lazy`), so a screen
- * nobody opened is a bundle nobody downloaded. Authentication is the exception:
- * the guard and the login are needed on the first paint of every visit.
- *
- * `/login` is the only route outside the guard.
- */
+import type { RouteHandle } from './route-handle';
+function screen(entry: NavEntry, Page: ComponentType): RouteObject {
+  const handle: RouteHandle = { crumb: entry.label };
+  return {
+    path: entry.path,
+    element: <Page />,
+    handle,
+    errorElement: <RouteErrorBoundary />,
+  };
+}
 export const routes: RouteObject[] = [
   {
     path: '/login',
@@ -32,7 +39,15 @@ export const routes: RouteObject[] = [
         path: '/',
         element: <AppShell />,
         children: [
-          { index: true, element: <HomePage /> },
+          { index: true, element: <Navigate to={HOME_PATH} replace /> },
+          screen(NAV.invoices, InvoiceImportPage),
+          screen(NAV.materials, MaterialsPage),
+          screen(NAV.compositeProducts, CompositeProductsPage),
+          screen(NAV.sales, SalesPage),
+          screen(NAV.shortages, ShortagesPage),
+          screen(NAV.spending, SpendingPage),
+          screen(NAV.activity, ActivityPage),
+          screen(NAV.settings, SettingsPage),
           { path: '*', element: <NotFoundPage /> },
         ],
       },

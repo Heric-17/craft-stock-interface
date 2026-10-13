@@ -80,7 +80,9 @@ describe('opening the application', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Carregando');
     expect(screen.queryByRole('heading', { name: 'Entrar' })).not.toBeInTheDocument();
 
-    expect(await screen.findByRole('heading', { name: 'CraftStock' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Importar nota fiscal' }),
+    ).toBeInTheDocument();
     expect(screen.getByText(marina.email)).toBeInTheDocument();
     expect(visited.some((entry) => entry.startsWith('/login'))).toBe(false);
   });
@@ -125,8 +127,8 @@ describe('opening the application', () => {
     await screen.findByRole('heading', { name: 'Entrar' });
     await fillAndSubmit(user);
 
-    await screen.findByRole('heading', { name: 'CraftStock' });
-    expect(locationOf(router)).toBe('/');
+    await screen.findByRole('heading', { name: 'Importar nota fiscal' });
+    expect(locationOf(router)).toBe('/importar-nota');
   });
 
   it('takes someone who is already signed in past the login', async () => {
@@ -156,7 +158,9 @@ describe('opening the application', () => {
 
     await user.click(within(alert).getByRole('button', { name: 'Tentar novamente' }));
 
-    expect(await screen.findByRole('heading', { name: 'CraftStock' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Importar nota fiscal' }),
+    ).toBeInTheDocument();
     expect(visited.some((entry) => entry.startsWith('/login'))).toBe(false);
   });
 });
@@ -267,7 +271,7 @@ describe('signing in', () => {
     expect(pending).toBeDisabled();
     await user.click(pending);
 
-    await screen.findByRole('heading', { name: 'CraftStock' });
+    await screen.findByRole('heading', { name: 'Importar nota fiscal' });
     expect(received).toBe(1);
   });
 
@@ -283,7 +287,7 @@ describe('signing in', () => {
 
     await screen.findByRole('heading', { name: 'Entrar' });
     await fillAndSubmit(user, 'senha-secreta');
-    await screen.findByRole('heading', { name: 'CraftStock' });
+    await screen.findByRole('heading', { name: 'Importar nota fiscal' });
 
     expect(storageWrites).not.toHaveBeenCalled();
 
@@ -376,12 +380,12 @@ describe('a session that ends', () => {
     const user = userEvent.setup();
     const { router } = renderApp('/');
 
-    await screen.findByRole('heading', { name: 'CraftStock' });
+    await screen.findByRole('heading', { name: 'Importar nota fiscal' });
     await user.click(screen.getByRole('button', { name: 'Sair' }));
 
     expect(await screen.findByText(/err-logout-500/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sair' })).toBeEnabled());
-    expect(locationOf(router)).toBe('/');
+    expect(locationOf(router)).toBe('/importar-nota');
     expect(screen.queryByRole('heading', { name: 'Entrar' })).not.toBeInTheDocument();
   });
 });

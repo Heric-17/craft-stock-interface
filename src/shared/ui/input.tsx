@@ -1,12 +1,5 @@
 import type { ComponentProps } from 'react';
-
 import { cn } from '@/shared/lib/cn';
-
-/**
- * 44px tall to be hit with a thumb, and 16px on a narrow screen: iOS zooms the
- * page in on any focused field set below that, and the zoom does not undo
- * itself.
- */
 export function Input({ className, ...props }: ComponentProps<'input'>) {
   return (
     <input

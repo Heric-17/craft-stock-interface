@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeDecimalInput,
   parseBasisPointsInput,
+  parseCentsInput,
   parseMoneyInput,
   parseQuantityInput,
 } from './parse-input';
@@ -52,7 +53,43 @@ describe('parseMoneyInput', () => {
   });
 });
 
+describe('normalizeDecimalInput with a lone dot read as decimal', () => {
+  it.each([
+    ['1.500', '1.500'],
+    ['1.284', '1.284'],
+    ['0.145', '0.145'],
+    ['1.5', '1.5'],
+    ['1.234.567', '1234567'],
+    ['1.500,5', '1500.5'],
+    ['1500', '1500'],
+  ])('reads %p as %p', (text, expected) => {
+    expect(normalizeDecimalInput(text, 'decimal')).toBe(expected);
+  });
+});
+
+describe('parseCentsInput', () => {
+  it('reads whole cents like parseMoneyInput', () => {
+    expect(parseCentsInput('1.284,70')?.toCentsString()).toBe('1284.70');
+    expect(parseCentsInput('1.284')?.toCentsString()).toBe('1284.00');
+  });
+
+  it('refuses a third decimal place instead of rounding it behind the typed digits', () => {
+    expect(parseCentsInput('1,005')).toBeNull();
+    expect(parseCentsInput('0.145')).toBeNull();
+  });
+
+  it('answers null for an empty field', () => {
+    expect(parseCentsInput('')).toBeNull();
+  });
+});
+
 describe('parseQuantityInput', () => {
+  it('reads a lone dot as a decimal point: 1.500 in a g field is 1,5 g', () => {
+    expect(parseQuantityInput('1.500', 'GRAM')?.toApiNumber()).toBe(1.5);
+    expect(parseQuantityInput('1.500,5', 'GRAM')?.toApiNumber()).toBe(1500.5);
+    expect(parseQuantityInput('1.500', 'GRAM', 'major')?.toApiNumber()).toBe(1500);
+  });
+
   it('reads the base unit by default', () => {
     expect(parseQuantityInput('680', 'GRAM')?.toApiNumber()).toBe(680);
     expect(parseQuantityInput('0,145', 'GRAM')?.toApiNumber()).toBe(0.145);

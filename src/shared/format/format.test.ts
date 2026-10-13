@@ -102,6 +102,23 @@ describe('formatQuantity', () => {
     expect(formatQuantity(quantity('1234.567', 'GRAM'))).toBe(`1,235${SPACE}kg`);
   });
 
+  it('with exact, keeps the larger unit only when nothing is lost to the rounding', () => {
+    // The echo under a field must never show a gram more or less than was typed.
+    expect(formatQuantity(quantity('1234.567', 'GRAM'), { exact: true })).toBe(
+      `1.234,567${SPACE}g`,
+    );
+    expect(formatQuantity(quantity('1500.5', 'GRAM'), { exact: true })).toBe(`1.500,5${SPACE}g`);
+    expect(formatQuantity(quantity('1500', 'GRAM'), { exact: true })).toBe(`1,5${SPACE}kg`);
+    expect(formatQuantity(quantity('1234567', 'GRAM'), { exact: true })).toBe(
+      `1.234,567${SPACE}kg`,
+    );
+    expect(formatQuantity(quantity('2500', 'MILLILITER'), { exact: true })).toBe(`2,5${SPACE}L`);
+    expect(formatQuantity(quantity('1050', 'CENTIMETER'), { exact: true })).toBe(`10,5${SPACE}m`);
+    expect(formatQuantity(quantity('1000.001', 'CENTIMETER'), { exact: true })).toBe(
+      `1.000,001${SPACE}cm`,
+    );
+  });
+
   it('keeps UNIT in units at every size, because there is no larger one', () => {
     expect(formatQuantity(quantity('1500', 'UNIT'))).toBe(`1.500${SPACE}un`);
   });

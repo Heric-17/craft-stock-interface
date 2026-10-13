@@ -1,7 +1,5 @@
 import { Link } from 'react-router';
-
 import { Button } from '@/shared/ui/button';
-
 export function NotFoundPage() {
   return (
     <section className="flex flex-col items-start gap-4 py-12">

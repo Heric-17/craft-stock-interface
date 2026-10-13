@@ -1,19 +1,11 @@
 import { Button } from './button';
 import { UnexpectedError } from './unexpected-error';
-
 interface ErrorStateProps {
   error: unknown;
-  /** Omit when trying again cannot help, e.g. a screen whose address is wrong. */
   onRetry?: () => void;
   retrying?: boolean;
   title?: string;
 }
-
-/**
- * The error state of a screen that has data to show: what failed, the support
- * code when the failure is ours, and the way to try again. A blank area and a
- * spinner that never ends are the two things this exists to prevent.
- */
 export function ErrorState({
   error,
   onRetry,

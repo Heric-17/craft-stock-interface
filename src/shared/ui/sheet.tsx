@@ -1,0 +1,59 @@
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { X } from 'lucide-react';
+import type { ComponentProps } from 'react';
+import { cn } from '@/shared/lib/cn';
+export const Sheet = DialogPrimitive.Root;
+export const SheetTrigger = DialogPrimitive.Trigger;
+export const SheetClose = DialogPrimitive.Close;
+type Side = 'left' | 'right' | 'bottom';
+const SIDE_CLASSES: Record<Side, string> = {
+  left: 'inset-y-0 left-0 h-dvh w-[17rem] max-w-[85vw] data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left',
+  right:
+    'inset-y-0 right-0 h-dvh w-[22rem] max-w-[90vw] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
+  bottom:
+    'inset-x-0 bottom-0 max-h-[90dvh] rounded-t-xl data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
+};
+type SheetContentProps = ComponentProps<typeof DialogPrimitive.Content> & {
+  side?: Side;
+  title: string;
+  hideClose?: boolean;
+};
+export function SheetContent({
+  side = 'left',
+  title,
+  hideClose = false,
+  className,
+  children,
+  ...props
+}: SheetContentProps) {
+  return (
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay
+        data-slot="sheet-overlay"
+        className="bg-foreground/40 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 fixed inset-0 z-40"
+      />
+      <DialogPrimitive.Content
+        data-slot="sheet-content"
+        aria-describedby={undefined}
+        className={cn(
+          'fixed z-50 flex flex-col shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=open]:duration-300',
+          'pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]',
+          SIDE_CLASSES[side],
+          className,
+        )}
+        {...props}
+      >
+        <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
+        {children}
+        {hideClose ? null : (
+          <DialogPrimitive.Close
+            aria-label="Fechar"
+            className="text-muted-foreground absolute top-3 right-3 grid size-11 place-items-center rounded-md"
+          >
+            <X aria-hidden="true" className="size-5" />
+          </DialogPrimitive.Close>
+        )}
+      </DialogPrimitive.Content>
+    </DialogPrimitive.Portal>
+  );
+}

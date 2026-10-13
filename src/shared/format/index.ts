@@ -13,8 +13,10 @@ export { formatMoney, formatUnitCost } from './money';
 export {
   normalizeDecimalInput,
   parseBasisPointsInput,
+  parseCentsInput,
   parseMoneyInput,
   parseQuantityInput,
+  type AmbiguousDot,
   type QuantityInputScale,
 } from './parse-input';
 export { formatBasisPoints, formatMarginPercent, formatPercent } from './percent';
@@ -26,4 +28,5 @@ export {
   type PeriodRange,
 } from './period';
 export { formatQuantity } from './quantity';
+export { readMoneyField, readQuantityField, type FieldReading } from './read-field';
 export { baseUnitSymbol, majorUnitSymbol } from './unit-symbol';
