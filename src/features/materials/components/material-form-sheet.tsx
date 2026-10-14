@@ -37,7 +37,7 @@ import {
 } from '../model/material-form';
 import { unitLockFromError, unitLockOf, unitLockText, type UnitLock } from '../model/unit-lock';
 
-import { PhotoButton } from './photo-button';
+import { PhotoButton } from '@/shared/ui/photo-button';
 
 interface MaterialFormSheetProps {
   open: boolean;

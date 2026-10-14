@@ -37,6 +37,17 @@ export const NAV = {
   settings: { path: '/configuracoes', label: 'Configurações', icon: Settings },
 } as const satisfies Record<string, NavEntry>;
 
+/**
+ * The screens under "Fichas técnicas", as segments of its path. They are
+ * visible text like the rest of the address, so they are in Portuguese, and
+ * they live here with every other path instead of inside the components that
+ * link to them.
+ */
+export const COMPOSITE_PRODUCT_ROUTES = {
+  new: 'nova',
+  detail: ':id',
+} as const;
+
 /** The groups of the mockups, in the order they are drawn. */
 export const NAV_GROUPS: readonly NavGroup[] = [
   { label: 'Operação', entries: [NAV.invoices] },

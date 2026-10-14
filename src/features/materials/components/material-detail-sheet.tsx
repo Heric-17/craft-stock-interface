@@ -25,7 +25,7 @@ import type { Material } from '../model/material';
 import type { StockAdjustmentKind } from '../model/stock-adjustment';
 
 import { MaterialStatusBadges } from './material-status-badges';
-import { PhotoButton } from './photo-button';
+import { PhotoButton } from '@/shared/ui/photo-button';
 import { PriceHistorySection } from './price-history-section';
 import { StockActions } from './stock-actions';
 

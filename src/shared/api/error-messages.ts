@@ -46,7 +46,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   INVALID_COMPOSITE_PRODUCT: 'Os dados do produto não são válidos.',
   UNKNOWN_MATERIAL_REFERENCE: 'A ficha técnica aponta para um insumo que não existe.',
   UNKNOWN_COMPOSITE_PRODUCT_REFERENCE: 'A venda aponta para um produto que não existe.',
-  INACTIVE_MATERIAL_REFERENCE: 'A ficha técnica usa um insumo descontinuado.',
+  INACTIVE_MATERIAL_REFERENCE:
+    'Um insumo desta ficha foi descontinuado. Remova esse item da ficha ou reative o insumo para salvar mudanças nos itens.',
 
   // Vendas
   SALE_NOT_FOUND: 'Venda não encontrada.',

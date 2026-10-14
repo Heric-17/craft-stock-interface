@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RequireAuth } from '@/features/auth';
 import { ApiError } from '@/shared/api/api-error';
 import { refreshSucceeds } from '@/test/auth';
+import { compositeProductsHandlers } from '@/test/fixtures/composite-products';
 import { materialsHandlers } from '@/test/fixtures/materials';
 import { server } from '@/test/msw/server';
 import { PHONE_WIDTH, setViewportWidth } from '@/test/viewport';
@@ -54,7 +55,12 @@ const SCREENS: readonly {
 }[] = [
   { link: 'Importar nota', heading: 'Importar nota fiscal', path: '/importar-nota' },
   { link: 'Insumos', heading: 'Insumos', path: '/insumos', built: true },
-  { link: 'Fichas técnicas', heading: 'Fichas técnicas', path: '/fichas-tecnicas' },
+  {
+    link: 'Fichas técnicas',
+    heading: 'Fichas técnicas',
+    path: '/fichas-tecnicas',
+    built: true,
+  },
   { link: 'Vendas', heading: 'Vendas', path: '/vendas' },
   { link: 'Insumos faltantes', heading: 'Insumos faltantes', path: '/insumos-faltantes' },
   { link: 'Gastos da empresa', heading: 'Gastos da empresa', path: '/gastos' },
@@ -66,7 +72,7 @@ describe('application shell', () => {
   // The shell is behind the guard: a session the browser still holds opens it.
   // `/insumos` is a real screen now, so the API it reads answers too.
   beforeEach(() => {
-    server.use(refreshSucceeds(), ...materialsHandlers());
+    server.use(refreshSucceeds(), ...materialsHandlers(), ...compositeProductsHandlers());
   });
 
   it('opens on the invoice import screen, with the installation name in the sidebar', async () => {
@@ -162,6 +168,42 @@ describe('application shell', () => {
     );
   });
 
+  it('shows the editor of a product under its list in the breadcrumb, with the menu still marking the list', async () => {
+    renderApp('/fichas-tecnicas/nova');
+    await screen.findByRole('heading', { name: 'Nova ficha técnica', level: 1 });
+
+    expect(
+      within(breadcrumb())
+        .getAllByRole('listitem')
+        .map((crumb) => crumb.textContent),
+    ).toEqual(['CraftStock', 'Fichas técnicas', 'Nova ficha técnica']);
+    expect(within(breadcrumb()).getByRole('link', { name: 'Fichas técnicas' })).toHaveAttribute(
+      'href',
+      '/fichas-tecnicas',
+    );
+    expect(within(menu()).getByRole('link', { name: 'Fichas técnicas' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
+  it('opens a product from the list and comes back to it', async () => {
+    const user = userEvent.setup();
+    const router = renderApp('/fichas-tecnicas');
+
+    await user.click(await screen.findByRole('link', { name: /Vela de baunilha/ }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Vela de baunilha', level: 1 }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/fichas-tecnicas/prod-baunilha');
+
+    await user.click(screen.getByRole('link', { name: 'Voltar para as fichas técnicas' }));
+
+    expect(await screen.findByRole('heading', { name: 'Fichas técnicas', level: 1 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/fichas-tecnicas');
+  });
+
   it('answers an unknown address with a page that says so', async () => {
     renderApp('/rota-que-nao-existe');
 
@@ -182,7 +224,7 @@ describe('application shell', () => {
 
 describe('application shell on a phone', () => {
   beforeEach(() => {
-    server.use(refreshSucceeds(), ...materialsHandlers());
+    server.use(refreshSucceeds(), ...materialsHandlers(), ...compositeProductsHandlers());
     setViewportWidth(PHONE_WIDTH);
   });
 

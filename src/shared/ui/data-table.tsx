@@ -1,7 +1,11 @@
 import { ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { useIsDesktop, useIsLargeDesktop } from '@/shared/lib/use-media-query';
+import {
+  useIsDesktop,
+  useIsExtraLargeDesktop,
+  useIsLargeDesktop,
+} from '@/shared/lib/use-media-query';
 import { cn } from '@/shared/lib/cn';
 export interface DataTableColumn<Row> {
   id: string;
@@ -20,9 +24,9 @@ interface DataTableProps<Row> {
    * From which width the rows are a table. `md` by default; a table with many
    * columns on a screen that also has a sidebar asks for `lg`, because between
    * the two the content area is a few hundred pixels wide and the table would
-   * hide most of its columns behind a sideways scroll.
+   * hide most of its columns behind a sideways scroll. `xl` is for six or more.
    */
-  tableFrom?: 'md' | 'lg';
+  tableFrom?: 'md' | 'lg' | 'xl';
 }
 export function DataTable<Row>({
   columns,
@@ -34,7 +38,8 @@ export function DataTable<Row>({
 }: DataTableProps<Row>) {
   const isMedium = useIsDesktop();
   const isLarge = useIsLargeDesktop();
-  const isDesktop = tableFrom === 'lg' ? isLarge : isMedium;
+  const isExtraLarge = useIsExtraLargeDesktop();
+  const isDesktop = tableFrom === 'xl' ? isExtraLarge : tableFrom === 'lg' ? isLarge : isMedium;
   const primary = columns.find((column) => column.role === 'primary') ?? columns[0];
   if (primary === undefined) {
     return null;

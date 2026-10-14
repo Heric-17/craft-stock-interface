@@ -145,6 +145,13 @@ describe('parseBasisPointsInput', () => {
     expect(parseBasisPointsInput('-5')).toBeNull();
   });
 
+  it('refuses a third decimal place instead of rounding it', () => {
+    expect(parseBasisPointsInput('33,333')).toBeNull();
+    expect(parseBasisPointsInput('0,005')).toBeNull();
+    // Trailing zeros are not places.
+    expect(parseBasisPointsInput('33,330')).toBe(3333);
+  });
+
   it('answers null for an empty field, which a required margin treats as missing', () => {
     // A Material sold on its own needs a margin: empty is empty, never zero.
     expect(parseBasisPointsInput('')).toBeNull();

@@ -34,3 +34,10 @@ export function useIsLargeDesktop(): boolean {
 export function useIsDesktop(): boolean {
   return useMediaQuery(DESKTOP_QUERY);
 }
+
+/** The `xl` breakpoint: where a screen with a sidebar also has room for a side panel. */
+export const EXTRA_LARGE_DESKTOP_QUERY = '(min-width: 1280px)';
+
+export function useIsExtraLargeDesktop(): boolean {
+  return useMediaQuery(EXTRA_LARGE_DESKTOP_QUERY);
+}

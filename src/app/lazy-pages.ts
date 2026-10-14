@@ -16,6 +16,10 @@ export const CompositeProductsPage = lazy(async () => ({
   default: (await import('@/features/composite-products')).CompositeProductsPage,
 }));
 
+export const CompositeProductEditorPage = lazy(async () => ({
+  default: (await import('@/features/composite-products')).CompositeProductEditorPage,
+}));
+
 export const SalesPage = lazy(async () => ({
   default: (await import('@/features/sales')).SalesPage,
 }));

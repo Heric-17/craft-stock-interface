@@ -4,6 +4,7 @@ import { LoginPage, RequireAuth } from '@/features/auth';
 import { AppShell } from './app-shell';
 import {
   ActivityPage,
+  CompositeProductEditorPage,
   CompositeProductsPage,
   InvoiceImportPage,
   MaterialsPage,
@@ -12,7 +13,7 @@ import {
   ShortagesPage,
   SpendingPage,
 } from './lazy-pages';
-import { HOME_PATH, NAV, type NavEntry } from './navigation';
+import { COMPOSITE_PRODUCT_ROUTES, HOME_PATH, NAV, type NavEntry } from './navigation';
 import { NotFoundPage } from './pages/not-found-page';
 import { RouteErrorBoundary } from './route-error-boundary';
 import type { RouteHandle } from './route-handle';
@@ -25,6 +26,37 @@ function screen(entry: NavEntry, Page: ComponentType): RouteObject {
     errorElement: <RouteErrorBoundary />,
   };
 }
+/**
+ * The list of products and the editor under it. The list is the index of its
+ * own path, and the editor is a sibling screen of it, so a link between them
+ * can be relative and never spells an address.
+ */
+function compositeProductRoutes(): RouteObject {
+  const handle: RouteHandle = { crumb: NAV.compositeProducts.label };
+
+  return {
+    path: NAV.compositeProducts.path,
+    handle,
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        index: true,
+        element: <CompositeProductsPage newProductPath={COMPOSITE_PRODUCT_ROUTES.new} />,
+      },
+      {
+        path: COMPOSITE_PRODUCT_ROUTES.new,
+        element: <CompositeProductEditorPage />,
+        handle: { crumb: 'Nova ficha técnica' } satisfies RouteHandle,
+      },
+      {
+        path: COMPOSITE_PRODUCT_ROUTES.detail,
+        element: <CompositeProductEditorPage />,
+        handle: { crumb: 'Editar ficha técnica' } satisfies RouteHandle,
+      },
+    ],
+  };
+}
+
 export const routes: RouteObject[] = [
   {
     path: '/login',
@@ -42,7 +74,7 @@ export const routes: RouteObject[] = [
           { index: true, element: <Navigate to={HOME_PATH} replace /> },
           screen(NAV.invoices, InvoiceImportPage),
           screen(NAV.materials, MaterialsPage),
-          screen(NAV.compositeProducts, CompositeProductsPage),
+          compositeProductRoutes(),
           screen(NAV.sales, SalesPage),
           screen(NAV.shortages, ShortagesPage),
           screen(NAV.spending, SpendingPage),

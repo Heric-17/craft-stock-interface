@@ -143,14 +143,29 @@ function fitsQuantityPlaces(
  * A margin a person typed, as the basis points the API carries: `"33,33"` is
  * `3333`.
  *
- * `null` for text that is not a percentage, and for a margin above the 999,99%
- * the column holds, so the form answers on the field instead of waiting for a
- * 400.
+ * `null` for text that is not a percentage, for one with a third decimal place,
+ * and for a margin above the 999,99% the column holds, so the form answers on
+ * the field instead of waiting for a 400.
  */
 export function parseBasisPointsInput(text: string): number | null {
   const decimal = normalizeDecimalInput(text);
 
-  return decimal === null ? null : basisPointsFromDecimalString(decimal);
+  // A third decimal place is refused here, not rounded: `33,333` would be
+  // shown as `33,33` and sent as `3333`, which is an echo that lies.
+  if (decimal === null || !fitsMarginPlaces(decimal)) {
+    return null;
+  }
+
+  return basisPointsFromDecimalString(decimal);
+}
+
+/** Places a margin written as a percentage carries: two, one basis point. */
+const MARGIN_PLACES = 2;
+
+function fitsMarginPlaces(decimal: string): boolean {
+  const places = (decimal.split('.')[1] ?? '').replace(/0+$/, '').length;
+
+  return places <= MARGIN_PLACES;
 }
 
 /**

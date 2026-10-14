@@ -2,7 +2,13 @@ import type { Money } from '@/shared/money';
 import type { ConsumptionUnit, Quantity } from '@/shared/quantity';
 
 import { formatMoney } from './money';
-import { parseCentsInput, parseQuantityInput, type QuantityInputScale } from './parse-input';
+import {
+  parseBasisPointsInput,
+  parseCentsInput,
+  parseQuantityInput,
+  type QuantityInputScale,
+} from './parse-input';
+import { formatMarginPercent } from './percent';
 import { formatQuantity } from './quantity';
 
 /**
@@ -47,4 +53,16 @@ export function readMoneyField(text: string): FieldReading<Money> | null {
   const value = parseCentsInput(text);
 
   return value === null ? null : { value, display: formatMoney(value) };
+}
+
+/**
+ * A margin field's text, typed as a percentage. What is sent is the whole
+ * number of basis points the echo is written from: `33,33` reads as `33,33%`
+ * and travels as `3333`, and a third decimal place is unreadable rather than
+ * rounded.
+ */
+export function readMarginField(text: string): FieldReading<number> | null {
+  const value = parseBasisPointsInput(text);
+
+  return value === null ? null : { value, display: formatMarginPercent(value) };
 }

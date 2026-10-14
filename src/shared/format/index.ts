@@ -30,5 +30,10 @@ export {
   type PeriodRange,
 } from './period';
 export { formatQuantity } from './quantity';
-export { readMoneyField, readQuantityField, type FieldReading } from './read-field';
+export {
+  readMarginField,
+  readMoneyField,
+  readQuantityField,
+  type FieldReading,
+} from './read-field';
 export { baseUnitSymbol, majorUnitSymbol } from './unit-symbol';
