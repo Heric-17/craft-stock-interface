@@ -4,7 +4,12 @@ import {
   parseDecimalString,
   type DecimalString,
 } from '@/shared/money';
-import { Quantity, type ConsumptionUnit } from '@/shared/quantity';
+import {
+  majorUnitFactor,
+  Quantity,
+  QUANTITY_DECIMAL_PLACES,
+  type ConsumptionUnit,
+} from '@/shared/quantity';
 
 /**
  * Which unit the digits in a field are written in: the base unit the API
@@ -96,7 +101,8 @@ export function parseCentsInput(text: string): Money | null {
  * A lone dot is a decimal point here: `"1.500"` in a g field is 1,5 g. The
  * field's echo shows that reading, and what is sent is what the echo showed.
  *
- * The conversion exists only here. What travels is always the base unit.
+ * The conversion exists only here. What travels is always the base unit. Text
+ * with more places than the quantity holds is refused, never rounded.
  */
 export function parseQuantityInput(
   text: string,
@@ -105,11 +111,32 @@ export function parseQuantityInput(
 ): Quantity | null {
   const decimal = normalizeDecimalInput(text, 'decimal');
 
-  if (decimal === null) {
+  if (decimal === null || !fitsQuantityPlaces(decimal, unit, scale)) {
     return null;
   }
 
   return scale === 'major' ? Quantity.fromMajorUnit(decimal, unit) : Quantity.parse(decimal, unit);
+}
+
+/**
+ * Whether the digits survive the conversion to the thousandth of the base unit
+ * without rounding. A quantity has three decimal places, and text finer than
+ * that is refused instead of rounded: the echo is the promise of what is sent,
+ * and a fourth place that quietly vanished would be the echo lying.
+ *
+ * In the larger unit more places are still exact: `1,2345` kg is `1234,5` g,
+ * and a kilo is a thousand grams, so three places more fit. Trailing zeros are
+ * not places (`1,5000` is `1,5`).
+ */
+function fitsQuantityPlaces(
+  decimal: string,
+  unit: ConsumptionUnit,
+  scale: QuantityInputScale,
+): boolean {
+  const factorDigits = scale === 'major' ? String(majorUnitFactor(unit)).length - 1 : 0;
+  const places = (decimal.split('.')[1] ?? '').replace(/0+$/, '').length;
+
+  return places <= QUANTITY_DECIMAL_PLACES + factorDigits;
 }
 
 /**

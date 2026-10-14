@@ -84,7 +84,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   HTTP_TRANSPORT: 'Não foi possível buscar a nota agora. Tente novamente.',
 
   // Imagens
-  UNSUPPORTED_IMAGE_MIME_TYPE: 'Formato de imagem não aceito. Use JPEG, PNG ou WebP.',
+  // O que foi enviado e o que é aceito vêm de `details`, por `unsupportedImageSummary`.
+  UNSUPPORTED_IMAGE_MIME_TYPE: 'Formato de imagem não aceito.',
   IMAGE_UPLOAD_FAILED: 'Não foi possível enviar a imagem agora. Tente novamente.',
   PAYLOAD_TOO_LARGE: 'A imagem é grande demais. Escolha um arquivo menor.',
 
@@ -304,12 +305,57 @@ export function discountAmountsSummary(error: ApiError): string | undefined {
 }
 
 /**
+ * How a MIME type reads to someone who never saw one: `image/webp` is WebP and
+ * `image/heic` is HEIC. Built from the type itself, so a format the API starts
+ * to accept tomorrow needs no change here.
+ */
+function imageFormatName(mimeType: string): string {
+  const subtype = (mimeType.split('/')[1] ?? mimeType).split('+')[0] ?? mimeType;
+
+  return subtype.toLowerCase() === 'webp' ? 'WebP' : subtype.toUpperCase();
+}
+
+function joinWithAnd(names: readonly string[]): string {
+  if (names.length <= 1) {
+    return names.join('');
+  }
+
+  return `${names.slice(0, -1).join(', ')} e ${names[names.length - 1] ?? ''}`;
+}
+
+/**
+ * "Você enviou um arquivo HEIC. Os formatos aceitos são JPEG, PNG e WebP.":
+ * what was sent and what is accepted, both read from `details` and never from
+ * the English message.
+ */
+export function unsupportedImageSummary(error: ApiError): string | undefined {
+  const details = error.detailsFor('UNSUPPORTED_IMAGE_MIME_TYPE');
+
+  if (details === undefined) {
+    return undefined;
+  }
+
+  const sent = `Você enviou um arquivo ${imageFormatName(details.mimeType)}.`;
+
+  if (details.supported.length === 0) {
+    return sent;
+  }
+
+  const accepted = details.supported.map(imageFormatName);
+
+  return `${sent} ${accepted.length === 1 ? 'O formato aceito é' : 'Os formatos aceitos são'} ${joinWithAnd(accepted)}.`;
+}
+
+/**
  * The second line under {@link messageForError}: the numbers and the way out
  * that only the typed `details` know — how many records block a delete, why a
  * unit is locked, how much of a discount is still unattributed.
  */
 export function errorDetail(error: ApiError): string | undefined {
   return (
-    entityInUseSummary(error) ?? consumptionUnitLockedReason(error) ?? discountAmountsSummary(error)
+    entityInUseSummary(error) ??
+    consumptionUnitLockedReason(error) ??
+    discountAmountsSummary(error) ??
+    unsupportedImageSummary(error)
   );
 }

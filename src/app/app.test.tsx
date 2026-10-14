@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RequireAuth } from '@/features/auth';
 import { ApiError } from '@/shared/api/api-error';
 import { refreshSucceeds } from '@/test/auth';
+import { materialsHandlers } from '@/test/fixtures/materials';
 import { server } from '@/test/msw/server';
 import { PHONE_WIDTH, setViewportWidth } from '@/test/viewport';
 
@@ -40,22 +41,32 @@ function breadcrumb() {
   return screen.getByRole('navigation', { name: 'Você está em' });
 }
 
-/** Every entry of the menu, with the screen it opens. */
-const SCREENS = [
+/**
+ * Every entry of the menu, with the screen it opens. `built` marks the screens
+ * that are no longer a placeholder: they are checked by their own tests, and
+ * the "em construção" notice is only expected of the ones still waiting.
+ */
+const SCREENS: readonly {
+  link: string;
+  heading: string;
+  path: string;
+  built?: boolean;
+}[] = [
   { link: 'Importar nota', heading: 'Importar nota fiscal', path: '/importar-nota' },
-  { link: 'Insumos', heading: 'Insumos', path: '/insumos' },
+  { link: 'Insumos', heading: 'Insumos', path: '/insumos', built: true },
   { link: 'Fichas técnicas', heading: 'Fichas técnicas', path: '/fichas-tecnicas' },
   { link: 'Vendas', heading: 'Vendas', path: '/vendas' },
   { link: 'Insumos faltantes', heading: 'Insumos faltantes', path: '/insumos-faltantes' },
   { link: 'Gastos da empresa', heading: 'Gastos da empresa', path: '/gastos' },
   { link: 'Minhas atividades', heading: 'Minhas atividades', path: '/atividades' },
   { link: 'Configurações', heading: 'Configurações', path: '/configuracoes' },
-] as const;
+];
 
 describe('application shell', () => {
   // The shell is behind the guard: a session the browser still holds opens it.
+  // `/insumos` is a real screen now, so the API it reads answers too.
   beforeEach(() => {
-    server.use(refreshSucceeds());
+    server.use(refreshSucceeds(), ...materialsHandlers());
   });
 
   it('opens on the invoice import screen, with the installation name in the sidebar', async () => {
@@ -108,8 +119,10 @@ describe('application shell', () => {
     expect(screen.queryByText(/plano/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/administradora/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /notifica/i })).not.toBeInTheDocument();
-    // The company name is plain text, not a dropdown.
-    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    // The company name is plain text, not a dropdown: nothing in the shell is
+    // a select. (The screen below it may have its own, like the stock filter.)
+    expect(within(menu()).queryByRole('combobox')).not.toBeInTheDocument();
+    expect(within(breadcrumb().closest('header')!).queryByRole('combobox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /ateliê/i })).not.toBeInTheDocument();
   });
 
@@ -123,8 +136,10 @@ describe('application shell', () => {
 
       expect(await screen.findByRole('heading', { name: target.heading, level: 1 })).toBeVisible();
       expect(router.state.location.pathname).toBe(target.path);
-      // The screen is not built yet, and says so instead of showing a blank area.
-      expect(screen.getByText('Esta tela está em construção')).toBeInTheDocument();
+      // A screen that is not built yet says so instead of showing a blank area.
+      if (target.built !== true) {
+        expect(screen.getByText('Esta tela está em construção')).toBeInTheDocument();
+      }
       // The menu marks where you are, and the breadcrumb says it too.
       expect(screen.getByRole('link', { name: target.link })).toHaveAttribute(
         'aria-current',
@@ -167,7 +182,7 @@ describe('application shell', () => {
 
 describe('application shell on a phone', () => {
   beforeEach(() => {
-    server.use(refreshSucceeds());
+    server.use(refreshSucceeds(), ...materialsHandlers());
     setViewportWidth(PHONE_WIDTH);
   });
 

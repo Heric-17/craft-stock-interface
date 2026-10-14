@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { NON_BREAKING_SPACE as SPACE } from './decimal';
+import { moneyInputText, quantityInputText } from './input-text';
 import { readMoneyField, readQuantityField } from './read-field';
 
 describe('readQuantityField', () => {
@@ -53,5 +54,21 @@ describe('readMoneyField', () => {
     expect(readMoneyField('1,005')).toBeNull();
     expect(readMoneyField('')).toBeNull();
     expect(readMoneyField('dez')).toBeNull();
+  });
+});
+
+describe('the text a form is filled with', () => {
+  it('reads back to the same amount and the same quantity', () => {
+    const money = readMoneyField('1.284,7')!.value;
+    const quantity = readQuantityField('1500,5', 'GRAM')!.value;
+
+    expect(readMoneyField(moneyInputText(money))?.value.equals(money)).toBe(true);
+    expect(readQuantityField(quantityInputText(quantity), 'GRAM')?.value.compare(quantity)).toBe(0);
+  });
+
+  it('writes no grouping dot, which a quantity field would read as a decimal point', () => {
+    expect(quantityInputText(readQuantityField('1500', 'GRAM')!.value)).toBe('1500');
+    expect(quantityInputText(readQuantityField('0,145', 'GRAM')!.value)).toBe('0,145');
+    expect(moneyInputText(readMoneyField('1.284')!.value)).toBe('1284,00');
   });
 });

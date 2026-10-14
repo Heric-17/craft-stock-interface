@@ -1,4 +1,4 @@
-import { useId, type ComponentProps } from 'react';
+import { useId, type ComponentProps, type ReactNode } from 'react';
 import { cn } from '@/shared/lib/cn';
 import { Input } from './input';
 import { Label } from './label';
@@ -12,6 +12,8 @@ export type EchoFieldProps = Omit<
   reading: string | null;
   adornmentStart?: string;
   adornmentEnd?: string;
+  /** Sits between the input and the echo: a unit switch, for instance. */
+  accessory?: ReactNode;
   error?: string | undefined;
 };
 export function EchoField({
@@ -21,6 +23,7 @@ export function EchoField({
   reading,
   adornmentStart,
   adornmentEnd,
+  accessory,
   error,
   id: idProp,
   className,
@@ -70,7 +73,7 @@ export function EchoField({
           </span>
         )}
       </div>
-      {}
+      {accessory}
       <p id={echoId} aria-live="polite" className="text-muted-foreground min-h-4 text-xs">
         {reading === null ? null : (
           <>

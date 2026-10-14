@@ -24,6 +24,13 @@ export function useMediaQuery(query: string): boolean {
   );
 }
 
+/** The `lg` breakpoint: where a screen with a sidebar has room for a wide table. */
+export const LARGE_DESKTOP_QUERY = '(min-width: 1024px)';
+
+export function useIsLargeDesktop(): boolean {
+  return useMediaQuery(LARGE_DESKTOP_QUERY);
+}
+
 export function useIsDesktop(): boolean {
   return useMediaQuery(DESKTOP_QUERY);
 }

@@ -7,8 +7,10 @@
  * same `Material`, and whichever one is wrong is wrong on a screen somebody
  * prices from.
  */
+export { formatCount } from './count';
 export { businessDayNumber, formatDateTime, InvalidDateValueError } from './date-time';
 export { NON_BREAKING_SPACE } from './decimal';
+export { moneyInputText, quantityInputText } from './input-text';
 export { formatMoney, formatUnitCost } from './money';
 export {
   normalizeDecimalInput,

@@ -26,7 +26,7 @@ const columns: DataTableColumn<Row>[] = [
   { id: 'note', header: 'Anotação', role: 'desktop-only', cell: (row) => row.note },
 ];
 
-function renderTable(withLinks = true) {
+function renderTable(withLinks = true, tableFrom?: 'md' | 'lg') {
   return render(
     <MemoryRouter>
       <DataTable
@@ -35,6 +35,7 @@ function renderTable(withLinks = true) {
         rows={rows}
         getRowKey={(row) => row.id}
         getRowHref={withLinks ? (row) => `/insumos/${row.id}` : undefined}
+        {...(tableFrom === undefined ? {} : { tableFrom })}
       />
     </MemoryRouter>,
   );
@@ -118,6 +119,23 @@ describe('DataTable on a narrow screen', () => {
 
     setViewportWidth(TABLET_WIDTH);
     renderTable();
+    expect(screen.getByRole('table')).toBeInTheDocument();
+  });
+
+  it('can keep the cards until the large breakpoint, where a sidebar leaves room for a wide table', () => {
+    setViewportWidth(TABLET_WIDTH);
+    const { unmount } = renderTable(true, 'lg');
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Insumos cadastrados' })).toBeInTheDocument();
+    unmount();
+
+    setViewportWidth(1023);
+    const narrow = renderTable(true, 'lg');
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    narrow.unmount();
+
+    setViewportWidth(1024);
+    renderTable(true, 'lg');
     expect(screen.getByRole('table')).toBeInTheDocument();
   });
 

@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import { cleanup } from '@testing-library/react';
+import { toast } from 'sonner';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 
 import { resetSession } from '@/shared/api/session';
@@ -21,6 +22,9 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  // The toast store belongs to the module, not to a rendered <Toaster />: one
+  // test's "foi descontinuado" would otherwise be on screen in the next.
+  toast.dismiss();
   // The session is module state: one test's sign-in must not be the next one's.
   resetSession();
   server.resetHandlers();

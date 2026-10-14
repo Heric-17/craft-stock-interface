@@ -5,7 +5,12 @@ import { env } from '@/shared/config/env';
 import { server } from '@/test/msw/server';
 
 import type { ApiError } from './api-error';
-import { consumptionUnitLockedReason, entityInUseSummary, messageForError } from './error-messages';
+import {
+  consumptionUnitLockedReason,
+  entityInUseSummary,
+  messageForError,
+  unsupportedImageSummary,
+} from './error-messages';
 import { request } from './http-client';
 
 const API = env.VITE_API_URL;
@@ -264,6 +269,35 @@ describe('UNSUPPORTED_IMAGE_MIME_TYPE', () => {
 
     expect(details?.mimeType).toBe('image/gif');
     expect(details?.supported).toEqual(['image/jpeg', 'image/png', 'image/webp']);
+  });
+
+  it('says what was sent and what is accepted, read from details', async () => {
+    const error = await failWith(
+      {
+        statusCode: 422,
+        code: 'UNSUPPORTED_IMAGE_MIME_TYPE',
+        error: 'UnsupportedImageMimeTypeError',
+        message: 'unsupported',
+        details: {
+          mimeType: 'image/heic',
+          supported: ['image/jpeg', 'image/png', 'image/webp'],
+        },
+      },
+      422,
+    );
+
+    expect(unsupportedImageSummary(error)).toBe(
+      'Você enviou um arquivo HEIC. Os formatos aceitos são JPEG, PNG e WebP.',
+    );
+  });
+
+  it('has nothing to add when the code is another one', async () => {
+    const error = await failWith(
+      { statusCode: 422, code: 'MATERIAL_NOT_FOUND', error: 'E', message: 'm' },
+      422,
+    );
+
+    expect(unsupportedImageSummary(error)).toBeUndefined();
   });
 });
 

@@ -110,6 +110,22 @@ describe('parseQuantityInput', () => {
   it('answers null for an empty field', () => {
     expect(parseQuantityInput('', 'GRAM')).toBeNull();
   });
+
+  it('refuses a fourth decimal place instead of rounding it', () => {
+    expect(parseQuantityInput('0,1455', 'GRAM')).toBeNull();
+    expect(parseQuantityInput('1,0005', 'UNIT')).toBeNull();
+    expect(parseQuantityInput('0,145', 'GRAM')?.toApiNumber()).toBe(0.145);
+  });
+
+  it('does not count trailing zeros as places', () => {
+    expect(parseQuantityInput('1,5000', 'GRAM')?.toApiNumber()).toBe(1.5);
+  });
+
+  it('keeps the places a larger unit adds: 1,2345 kg is exactly 1234,5 g', () => {
+    expect(parseQuantityInput('1,2345', 'GRAM', 'major')?.toApiNumber()).toBe(1234.5);
+    expect(parseQuantityInput('1,2345', 'CENTIMETER', 'major')?.toApiNumber()).toBe(123.45);
+    expect(parseQuantityInput('1,0005', 'UNIT', 'major')).toBeNull();
+  });
 });
 
 describe('parseBasisPointsInput', () => {
