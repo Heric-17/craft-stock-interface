@@ -25,9 +25,12 @@ export { formatBasisPoints, formatMarginPercent, formatPercent } from './percent
 export {
   buildPeriodRange,
   InvalidPeriodError,
+  resolvePeriod,
   type CivilDateRange,
   type PeriodPreset,
   type PeriodRange,
+  type PeriodResolution,
+  type PeriodSelection,
 } from './period';
 export { formatQuantity } from './quantity';
 export {

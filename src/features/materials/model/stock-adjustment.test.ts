@@ -5,10 +5,12 @@ import { requireDecimalString } from '@/shared/money';
 import { Quantity } from '@/shared/quantity';
 
 import {
-  buildStockAdjustmentRequest,
+  buildLossRequest,
+  buildStockEntryRequest,
   previewStockAfter,
+  readLossDetails,
   readStockAdjustment,
-  stockAdjustmentSchema,
+  stockAdjustmentSchemaFor,
   type StockAdjustmentKind,
 } from './stock-adjustment';
 
@@ -59,9 +61,7 @@ describe('a write-off', () => {
     const reading = read('WRITE_OFF', '680,001');
 
     expect(reading).toMatchObject({ ok: false, reason: 'EXCEEDS_STOCK' });
-    expect(reading.ok ? '' : reading.message).toBe(
-      `Não dá para dar baixa em mais do que há em estoque (680${SPACE}g).`,
-    );
+    expect(reading.ok ? '' : reading.message).toBe(`Você tem apenas 680${SPACE}g em estoque.`);
   });
 
   it('is accepted down to exactly zero', () => {
@@ -129,52 +129,128 @@ describe('the preview of the stock left behind', () => {
 });
 
 describe('the request each one becomes', () => {
-  it('an entry is a positive relativeIncrement', () => {
-    expect(buildStockAdjustmentRequest(accepted('ENTRY', '1,5', 'major'))).toEqual({
+  it('an entry is a positive relativeIncrement on stock-entries', () => {
+    expect(buildStockEntryRequest(accepted('ENTRY', '1,5', 'major'))).toEqual({
       source: 'MANUAL',
       relativeIncrement: 1500,
     });
   });
 
-  it('a write-off is a negative relativeIncrement', () => {
-    expect(buildStockAdjustmentRequest(accepted('WRITE_OFF', '80'))).toEqual({
-      source: 'MANUAL',
-      relativeIncrement: -80,
-    });
-  });
-
   it('a recount is an absoluteQuantity, and zero is sent as zero', () => {
-    expect(buildStockAdjustmentRequest(accepted('RECOUNT', '12'))).toEqual({
+    expect(buildStockEntryRequest(accepted('RECOUNT', '12'))).toEqual({
       source: 'MANUAL',
       absoluteQuantity: 12,
     });
-    expect(buildStockAdjustmentRequest(accepted('RECOUNT', '0'))).toEqual({
+    expect(buildStockEntryRequest(accepted('RECOUNT', '0'))).toEqual({
       source: 'MANUAL',
       absoluteQuantity: 0,
     });
   });
 
-  it('sends exactly the quantity the reading accepted', () => {
-    const adjustment = accepted('WRITE_OFF', '0,145');
+  it('a write-off is never a stock entry: the API refuses a negative increment there', () => {
+    expect(() => buildStockEntryRequest(accepted('WRITE_OFF', '80'))).toThrow(/buildLossRequest/);
+  });
 
-    expect(buildStockAdjustmentRequest(adjustment)).toEqual({
-      source: 'MANUAL',
-      relativeIncrement: -0.145,
+  it('a write-off is a loss with the quantity taken, positive, and its reason', () => {
+    expect(
+      buildLossRequest(accepted('WRITE_OFF', '80').quantity, {
+        reason: 'BREAKAGE',
+        observation: 'caiu da prateleira',
+      }),
+    ).toEqual({
+      quantity: 80,
+      reason: 'BREAKAGE',
+      observation: 'caiu da prateleira',
+    });
+  });
+
+  it('leaves the observation out when there is none, rather than sending an empty one', () => {
+    const request = buildLossRequest(accepted('WRITE_OFF', '0,5', 'major').quantity, {
+      reason: 'EXPIRED',
+      observation: null,
+    });
+
+    expect(request).toEqual({ quantity: 500, reason: 'EXPIRED' });
+    expect(request).not.toHaveProperty('observation');
+  });
+
+  it('sends exactly the quantity the reading accepted, with three places', () => {
+    expect(
+      buildLossRequest(accepted('WRITE_OFF', '0,145').quantity, {
+        reason: 'LOST',
+        observation: null,
+      }).quantity,
+    ).toBe(0.145);
+  });
+});
+
+describe('the reason of a write-off', () => {
+  it('is chosen from the closed list and never assumed', () => {
+    expect(readLossDetails('', '')).toEqual({
+      ok: false,
+      field: 'reason',
+      message: 'Escolha o motivo da baixa.',
+    });
+    expect(readLossDetails('QUEBROU', '')).toMatchObject({ ok: false, field: 'reason' });
+  });
+
+  it('accepts each of the five reasons', () => {
+    for (const reason of ['BREAKAGE', 'EXPIRED', 'SPOILAGE', 'LOST', 'OTHER']) {
+      expect(readLossDetails(reason, '').ok).toBe(true);
+    }
+  });
+
+  it('trims the observation and treats an empty one as absent', () => {
+    expect(readLossDetails('LOST', '  caiu  ')).toEqual({
+      ok: true,
+      details: { reason: 'LOST', observation: 'caiu' },
+    });
+    expect(readLossDetails('LOST', '   ')).toEqual({
+      ok: true,
+      details: { reason: 'LOST', observation: null },
+    });
+  });
+
+  it('refuses an observation over 500 characters, and takes exactly 500', () => {
+    expect(readLossDetails('LOST', 'a'.repeat(500)).ok).toBe(true);
+    expect(readLossDetails('LOST', 'a'.repeat(501))).toMatchObject({
+      ok: false,
+      field: 'observation',
     });
   });
 });
 
 describe('the form schema', () => {
+  const fields = { materialId: 'mat-1', quantity: '1', scale: 'base' as const, observation: '' };
+
   it('asks for a material and a quantity', () => {
-    const result = stockAdjustmentSchema.safeParse({
+    const result = stockAdjustmentSchemaFor('ENTRY').safeParse({
       materialId: '',
       quantity: '  ',
       scale: 'base',
+      reason: '',
+      observation: '',
     });
 
     expect(result.error?.issues.map((issue) => issue.path[0]).sort()).toEqual([
       'materialId',
       'quantity',
     ]);
+  });
+
+  it('asks for a reason only when something is written off', () => {
+    expect(stockAdjustmentSchemaFor('ENTRY').safeParse({ ...fields, reason: '' }).success).toBe(
+      true,
+    );
+    expect(stockAdjustmentSchemaFor('RECOUNT').safeParse({ ...fields, reason: '' }).success).toBe(
+      true,
+    );
+
+    const result = stockAdjustmentSchemaFor('WRITE_OFF').safeParse({ ...fields, reason: '' });
+
+    expect(result.error?.issues.map((issue) => issue.path[0])).toEqual(['reason']);
+    expect(
+      stockAdjustmentSchemaFor('WRITE_OFF').safeParse({ ...fields, reason: 'BREAKAGE' }).success,
+    ).toBe(true);
   });
 });

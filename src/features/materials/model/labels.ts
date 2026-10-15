@@ -1,5 +1,6 @@
 import type { ConsumptionUnit } from '@/shared/quantity';
 
+import type { StockLossReason } from './loss-reason';
 import type { PriceChangeOrigin } from './material';
 import type { StockAdjustmentKind } from './stock-adjustment';
 
@@ -57,10 +58,10 @@ export const STOCK_ADJUSTMENT_TEXT: Record<StockAdjustmentKind, StockAdjustmentT
     done: (name, stock) => `Entrada registrada em ${name}. Estoque agora: ${stock}.`,
   },
   WRITE_OFF: {
-    action: 'Dar baixa',
-    title: 'Dar baixa no estoque',
+    action: 'Dar baixa / perda',
+    title: 'Dar baixa ou registrar perda',
     description:
-      'Tire do estoque o que saiu sem ser por venda, como uma garrafa que quebrou. O motivo não fica registrado.',
+      'Tire do estoque o que saiu sem ser por venda, como uma garrafa que quebrou ou um lote que venceu. Fica no histórico de perdas, com o motivo.',
     field: 'Quantidade que saiu',
     submit: 'Registrar baixa',
     submitting: 'Registrando…',
@@ -78,4 +79,13 @@ export const STOCK_ADJUSTMENT_TEXT: Record<StockAdjustmentKind, StockAdjustmentT
     chooseMaterial: 'Escolha o insumo para informar a quantidade contada.',
     done: (name, stock) => `Contagem de ${name} corrigida. Estoque agora: ${stock}.`,
   },
+};
+
+/** Why stock was lost, as it is picked and as it is read in the history. */
+export const STOCK_LOSS_REASON_LABELS: Record<StockLossReason, string> = {
+  BREAKAGE: 'Quebrou',
+  EXPIRED: 'Venceu',
+  SPOILAGE: 'Estragou',
+  LOST: 'Perdido',
+  OTHER: 'Outro',
 };

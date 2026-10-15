@@ -8,6 +8,7 @@ import type { ApiError } from './api-error';
 import {
   consumptionUnitLockedReason,
   entityInUseSummary,
+  insufficientStockSummary,
   messageForError,
   unsupportedImageSummary,
 } from './error-messages';
@@ -48,6 +49,7 @@ describe('ENTITY_IN_USE', () => {
           bomItems: 2,
           purchaseItems: 0,
           stockMovements: 0,
+          stockLosses: 0,
           total: 5,
         },
       },
@@ -75,6 +77,7 @@ describe('ENTITY_IN_USE', () => {
           bomItems: 0,
           purchaseItems: 0,
           stockMovements: 0,
+          stockLosses: 0,
           total: 1,
         },
       },
@@ -101,6 +104,164 @@ describe('ENTITY_IN_USE', () => {
     expect(error.detailsFor('ENTITY_IN_USE')).toBeUndefined();
     expect(entityInUseSummary(error)).toBeUndefined();
     expect(messageForError(error)).toContain('Descontinue');
+  });
+});
+
+describe('ENTITY_IN_USE with registered stock losses', () => {
+  const inUse = (counts: Record<string, number>) => ({
+    statusCode: 422,
+    code: 'ENTITY_IN_USE',
+    error: 'EntityInUseError',
+    message: 'in use',
+    details: {
+      entityName: 'Material',
+      entityId: 'm1',
+      saleItems: 0,
+      bomItems: 0,
+      purchaseItems: 0,
+      stockMovements: 0,
+      stockLosses: 0,
+      ...counts,
+    },
+  });
+
+  it('counts them in the sentence when there are some', async () => {
+    const error = await failWith(inUse({ saleItems: 3, stockLosses: 2, total: 5 }), 422);
+
+    expect(error.detailsFor('ENTITY_IN_USE')?.stockLosses).toBe(2);
+    expect(entityInUseSummary(error)).toBe('Em uso em 3 vendas e 2 perdas registradas.');
+  });
+
+  it('writes one in the singular, and alone', async () => {
+    const error = await failWith(inUse({ stockLosses: 1, total: 1 }), 422);
+
+    expect(entityInUseSummary(error)).toBe('Em uso em 1 perda registrada.');
+  });
+
+  it('says nothing about them when there are none', async () => {
+    const error = await failWith(inUse({ saleItems: 1, total: 1 }), 422);
+
+    expect(entityInUseSummary(error)).toBe('Em uso em 1 venda.');
+    expect(entityInUseSummary(error)).not.toMatch(/perda/);
+  });
+
+  it('lists every kind, in order, joined the way it is read aloud', async () => {
+    const error = await failWith(
+      inUse({
+        saleItems: 1,
+        bomItems: 2,
+        purchaseItems: 3,
+        stockMovements: 4,
+        stockLosses: 5,
+        total: 15,
+      }),
+      422,
+    );
+
+    expect(entityInUseSummary(error)).toBe(
+      'Em uso em 1 venda, 2 fichas técnicas, 3 compras, 4 movimentações de estoque e 5 perdas registradas.',
+    );
+  });
+});
+
+describe('INSUFFICIENT_STOCK', () => {
+  const refused = (details: unknown) =>
+    failWith(
+      {
+        statusCode: 422,
+        code: 'INSUFFICIENT_STOCK',
+        error: 'InsufficientStockError',
+        message: 'Material m1 has only 300 in stock, requested 700.',
+        details,
+      },
+      422,
+    );
+
+  it('says how much there is, read from details and written in the unit of the material', async () => {
+    const error = await refused({ materialId: 'm1', stockQuantity: 300, requestedQuantity: 700 });
+
+    expect(error.detailsFor('INSUFFICIENT_STOCK')?.stockQuantity).toBe(300);
+    expect(insufficientStockSummary(error, 'GRAM')).toBe(`Você tem apenas 300${' '}g em estoque.`);
+    expect(insufficientStockSummary(error, 'UNIT')).toBe(`Você tem apenas 300${' '}un em estoque.`);
+  });
+
+  it('switches to the larger unit the way every quantity does', async () => {
+    const error = await refused({ materialId: 'm1', stockQuantity: 1500, requestedQuantity: 2000 });
+
+    expect(insufficientStockSummary(error, 'GRAM')).toBe(`Você tem apenas 1,5${' '}kg em estoque.`);
+  });
+
+  it('reads a fractional balance exactly', async () => {
+    const error = await refused({ materialId: 'm1', stockQuantity: 0.145, requestedQuantity: 1 });
+
+    expect(insufficientStockSummary(error, 'GRAM')).toBe(
+      `Você tem apenas 0,145${' '}g em estoque.`,
+    );
+  });
+
+  it('has a sentence of its own without the unit, and never the English message or the code', async () => {
+    const error = await refused({ materialId: 'm1', stockQuantity: 300, requestedQuantity: 700 });
+
+    expect(messageForError(error)).toBe('Não há estoque suficiente para essa baixa.');
+    expect(messageForError(error)).not.toMatch(/INSUFFICIENT_STOCK|only 300/);
+  });
+
+  it('gives no balance when the details are not the documented shape', async () => {
+    const error = await refused({ materialId: 'm1' });
+
+    expect(error.detailsFor('INSUFFICIENT_STOCK')).toBeUndefined();
+    expect(insufficientStockSummary(error, 'GRAM')).toBeUndefined();
+    expect(messageForError(error)).toBe('Não há estoque suficiente para essa baixa.');
+  });
+});
+
+describe('the codes of a stock loss', () => {
+  it('has a sentence of its own, never the English message or the code', async () => {
+    const error = await failWith(
+      {
+        statusCode: 422,
+        code: 'INVALID_STOCK_LOSS',
+        error: 'InvalidStockLossError',
+        message: 'Stock loss quantity must be positive.',
+      },
+      422,
+    );
+
+    expect(messageForError(error)).toBe('Os dados da perda não são válidos.');
+  });
+
+  it('says that a loss that is already gone is already gone, and that the list was updated', async () => {
+    const error = await failWith(
+      {
+        statusCode: 422,
+        code: 'STOCK_LOSS_NOT_FOUND',
+        error: 'StockLossNotFoundError',
+        message: 'StockLoss loss-1 does not exist.',
+      },
+      422,
+    );
+
+    expect(messageForError(error)).toBe(
+      'Esta perda já não existe, talvez tenha sido excluída em outra aba. A lista foi atualizada.',
+    );
+    expect(messageForError(error)).not.toMatch(/STOCK_LOSS_NOT_FOUND|does not exist/);
+  });
+
+  it('is not one of the codes of the undo that no longer exists', async () => {
+    // A loss cannot be undone: a mistake is corrected with a recount. The three codes
+    // of the old reversal fall back to the generic 422 sentence like any code unknown here.
+    for (const code of [
+      'INVALID_STOCK_ADJUSTMENT',
+      'STOCK_ADJUSTMENT_NOT_FOUND',
+      'STOCK_ADJUSTMENT_ALREADY_REVERSED',
+    ]) {
+      const error = await failWith(
+        { statusCode: 422, code, error: 'E', message: 'English, for the log.' },
+        422,
+      );
+
+      expect(messageForError(error)).toBe('Confira os campos destacados e tente de novo.');
+    }
   });
 });
 

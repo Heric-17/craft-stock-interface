@@ -847,6 +847,7 @@ describe('discontinuing, reactivating and deleting', () => {
             bomItems: 0,
             purchaseItems: 0,
             stockMovements: 0,
+            stockLosses: 0,
             total: 3,
           }),
           { status: 422 },

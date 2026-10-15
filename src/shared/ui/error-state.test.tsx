@@ -136,6 +136,7 @@ describe('a failure the user can act on', () => {
         bomItems: 2,
         purchaseItems: 0,
         stockMovements: 0,
+        stockLosses: 0,
         total: 5,
       },
       correlationId: 'corr-1',

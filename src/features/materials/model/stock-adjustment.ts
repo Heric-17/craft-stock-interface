@@ -3,21 +3,23 @@ import { z } from 'zod';
 import { formatQuantity, parseQuantityInput, type QuantityInputScale } from '@/shared/format';
 import { Quantity, type ConsumptionUnit } from '@/shared/quantity';
 
-import type { StockAdjustmentRequestDto } from '../api/material.dto';
+import type { StockEntryRequestDto } from '../api/material.dto';
+import type { RecordLossRequestDto } from '../api/stock-loss.dto';
+
+import { isStockLossReason, MAX_OBSERVATION_LENGTH, type StockLossReason } from './loss-reason';
 
 /**
  * The three things a person does to a material's stock by hand. They change
- * the same number and go to the same endpoint, but they are not the same act,
- * and the screen keeps them apart:
+ * the same number, but they are not the same act, and the screen keeps them
+ * apart — even though two of them reach the API by the same route:
  *
- * - `ENTRY`: something arrived. Adds to the stock.
- * - `WRITE_OFF`: something left without a sale — a bottle that broke. Takes
- *   from the stock.
+ * - `ENTRY`: something arrived. Adds to the stock (`stock-entries`).
+ * - `WRITE_OFF`: something left without a sale — a bottle that broke, a batch
+ *   that expired. Takes from the stock and is kept, with its reason, as a loss
+ *   (`losses`). It is a quantity **taken**, typed positive: nobody
+ *   types "-1 bottle".
  * - `RECOUNT`: the physical count differs from the system. The stock becomes
- *   exactly the number counted, which may be zero.
- *
- * The API records none of the reasons. What it keeps of a manual change is the
- * old and the new quantity, in the audit log.
+ *   exactly the number counted, which may be zero (`stock-entries`).
  */
 export type StockAdjustmentKind = 'ENTRY' | 'WRITE_OFF' | 'RECOUNT';
 
@@ -26,30 +28,53 @@ export interface StockAdjustment {
   quantity: Quantity;
 }
 
-/** The form: which material, how much, and in which unit it was typed. */
+/** The form: which material, how much, in which unit it was typed, and for a loss, why. */
 export interface StockAdjustmentFormValues {
   materialId: string;
   quantity: string;
   /** Whether `quantity` is typed in the base unit or in kg / L / m. */
   scale: QuantityInputScale;
+  /** Only read for a write-off. Starts empty: a reason is chosen, never assumed. */
+  reason: string;
+  /** Only read for a write-off. Optional. */
+  observation: string;
 }
 
 export const EMPTY_STOCK_ADJUSTMENT_FORM: StockAdjustmentFormValues = {
   materialId: '',
   quantity: '',
   scale: 'base',
+  reason: '',
+  observation: '',
 };
 
 /**
- * Zod checks what it can without knowing the material: that one was chosen and
- * that something was typed. The quantity is read afterwards, in the unit of the
- * chosen material, by {@link readStockAdjustment}.
+ * Zod checks what it can without knowing the material: that one was chosen,
+ * that something was typed and, for a write-off, that a reason was picked. The
+ * quantity is read afterwards, in the unit of the chosen material, by
+ * {@link readStockAdjustment}.
  */
-export const stockAdjustmentSchema = z.object({
-  materialId: z.string().min(1, 'Escolha o insumo.'),
-  quantity: z.string().trim().min(1, 'Informe a quantidade.'),
-  scale: z.enum(['base', 'major']),
-});
+export function stockAdjustmentSchemaFor(kind: StockAdjustmentKind) {
+  return z
+    .object({
+      materialId: z.string().min(1, 'Escolha o insumo.'),
+      quantity: z.string().trim().min(1, 'Informe a quantidade.'),
+      scale: z.enum(['base', 'major']),
+      reason: z.string(),
+      observation: z.string(),
+    })
+    .superRefine((values, ctx) => {
+      if (kind !== 'WRITE_OFF') {
+        return;
+      }
+
+      const details = readLossDetails(values.reason, values.observation);
+
+      if (!details.ok) {
+        ctx.addIssue({ code: 'custom', path: [details.field], message: details.message });
+      }
+    });
+}
 
 export type StockAdjustmentReading =
   | { ok: true; adjustment: StockAdjustment }
@@ -62,10 +87,11 @@ export type StockAdjustmentReading =
 /**
  * What the field says, checked against what the action allows.
  *
- * A write-off larger than the stock is refused here, before anything is sent:
- * the backend refuses a negative stock as well (a 422 that says only that the
- * material is invalid), so this is the place that can say what is wrong and by
- * how much. The backend stays the authority; this is the courtesy.
+ * A write-off larger than the stock is refused here, before anything is sent,
+ * and the message is the one the API would give: how much there is. The
+ * backend stays the authority — it refuses with `INSUFFICIENT_STOCK` if the
+ * stock changed under the screen — and this is what keeps the ordinary case
+ * from ever making the round trip.
  *
  * A recount may be zero — somebody counted and found nothing — and that is
  * typed, never filled in. The other two must be more than zero.
@@ -108,7 +134,7 @@ export function readStockAdjustment(
     return {
       ok: false,
       reason: 'EXCEEDS_STOCK',
-      message: `Não dá para dar baixa em mais do que há em estoque (${formatQuantity(currentStock)}).`,
+      message: `Você tem apenas ${formatQuantity(currentStock)} em estoque.`,
     };
   }
 
@@ -132,26 +158,62 @@ export function previewStockAfter(adjustment: StockAdjustment, currentStock: Qua
   }
 }
 
+/** Why and how a loss is explained: the reason from the closed list, and a free note. */
+export interface LossDetails {
+  reason: StockLossReason;
+  /** `null` when left empty: an optional field that was not filled is absent. */
+  observation: string | null;
+}
+
+export type LossDetailsReading =
+  | { ok: true; details: LossDetails }
+  | { ok: false; field: 'reason' | 'observation'; message: string };
+
+export function readLossDetails(reasonText: string, observationText: string): LossDetailsReading {
+  if (!isStockLossReason(reasonText)) {
+    return { ok: false, field: 'reason', message: 'Escolha o motivo da baixa.' };
+  }
+
+  const observation = observationText.trim();
+
+  if (observation.length > MAX_OBSERVATION_LENGTH) {
+    return {
+      ok: false,
+      field: 'observation',
+      message: `A observação pode ter até ${MAX_OBSERVATION_LENGTH} caracteres.`,
+    };
+  }
+
+  return {
+    ok: true,
+    details: { reason: reasonText, observation: observation === '' ? null : observation },
+  };
+}
+
 /**
- * An entry and a write-off are a `relativeIncrement`, positive and negative —
- * the contract has no field of its own for a decrease. A recount is the
- * `absoluteQuantity`. All of them are manual: `INVOICE_SYNC` belongs to an
- * imported invoice.
+ * An entry is a `relativeIncrement` and a recount the `absoluteQuantity`, both
+ * on `stock-entries` and both manual: `INVOICE_SYNC` belongs to an imported
+ * invoice. A write-off is not one of them — the API refuses a negative
+ * increment there — and goes through {@link buildLossRequest}.
  */
-export function buildStockAdjustmentRequest(
-  adjustment: StockAdjustment,
-): StockAdjustmentRequestDto {
+export function buildStockEntryRequest(adjustment: StockAdjustment): StockEntryRequestDto {
   const { kind, quantity } = adjustment;
 
   switch (kind) {
     case 'ENTRY':
       return { source: 'MANUAL', relativeIncrement: quantity.toApiNumber() };
-    case 'WRITE_OFF':
-      return {
-        source: 'MANUAL',
-        relativeIncrement: Quantity.zero(quantity.unit).minus(quantity).toApiNumber(),
-      };
     case 'RECOUNT':
       return { source: 'MANUAL', absoluteQuantity: quantity.toApiNumber() };
+    case 'WRITE_OFF':
+      throw new Error('A write-off is a loss, not a stock entry: use buildLossRequest.');
   }
+}
+
+/** A loss: the quantity **taken**, positive, as the API wants it, with why. */
+export function buildLossRequest(quantity: Quantity, details: LossDetails): RecordLossRequestDto {
+  return {
+    quantity: quantity.toApiNumber(),
+    reason: details.reason,
+    ...(details.observation === null ? {} : { observation: details.observation }),
+  };
 }

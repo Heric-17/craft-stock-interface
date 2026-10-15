@@ -1,5 +1,6 @@
-import { formatMoney } from '@/shared/format';
+import { formatMoney, formatQuantity } from '@/shared/format';
 import { Money, parseDecimalString } from '@/shared/money';
+import { Quantity, type ConsumptionUnit } from '@/shared/quantity';
 
 import type { ApiError } from './api-error';
 import type { DiscountAllocationReason } from './error-codes';
@@ -38,6 +39,14 @@ export const ERROR_MESSAGES: Record<string, string> = {
   MATERIAL_NOT_FOUND: 'Insumo não encontrado.',
   INVALID_MATERIAL: 'Os dados do insumo não são válidos.',
   INVALID_STOCK_ENTRY: 'A entrada de estoque não é válida.',
+  // Sem unidade, a frase é genérica. Com ela, a tela diz quanto há em estoque,
+  // lido de `details`, por `insufficientStockSummary`.
+  INSUFFICIENT_STOCK: 'Não há estoque suficiente para essa baixa.',
+  // A entrada já barra o que fere a regra, então a tela quase nunca chega a mostrar esta.
+  INVALID_STOCK_LOSS: 'Os dados da perda não são válidos.',
+  // Duas abas, ou um duplo clique: a perda que se quer excluir já não existe.
+  STOCK_LOSS_NOT_FOUND:
+    'Esta perda já não existe, talvez tenha sido excluída em outra aba. A lista foi atualizada.',
   CONSUMPTION_UNIT_LOCKED:
     'A unidade de consumo não pode mudar enquanto houver estoque ou uso em ficha técnica.',
 
@@ -215,6 +224,7 @@ export function entityInUseSummary(error: ApiError): string | undefined {
   add(details.bomItems, 'ficha técnica', 'fichas técnicas');
   add(details.purchaseItems, 'compra', 'compras');
   add(details.stockMovements, 'movimentação de estoque', 'movimentações de estoque');
+  add(details.stockLosses, 'perda registrada', 'perdas registradas');
 
   if (parts.length === 0) {
     return undefined;
@@ -225,6 +235,28 @@ export function entityInUseSummary(error: ApiError): string | undefined {
   }
 
   return `Em uso em ${parts.slice(0, -1).join(', ')} e ${parts[parts.length - 1]}.`;
+}
+
+/**
+ * "Você tem apenas 300 g em estoque.": the balance the API reported, in the
+ * unit of the material the request was about.
+ *
+ * `stockQuantity` is read from `details` and nowhere else — the screen's own
+ * idea of the stock may be older than the API's, which is the whole reason the
+ * request was refused. The unit is the one thing `details` leaves out, so the
+ * caller, which knows the material, passes it.
+ */
+export function insufficientStockSummary(
+  error: ApiError,
+  unit: ConsumptionUnit,
+): string | undefined {
+  const details = error.detailsFor('INSUFFICIENT_STOCK');
+
+  if (details === undefined) {
+    return undefined;
+  }
+
+  return `Você tem apenas ${formatQuantity(Quantity.fromApi(details.stockQuantity, unit))} em estoque.`;
 }
 
 /**

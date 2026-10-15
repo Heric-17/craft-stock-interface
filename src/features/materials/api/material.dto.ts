@@ -74,7 +74,9 @@ export interface ChangeConsumptionUnitRequestDto {
 
 /**
  * Exactly one of the two quantities, plus the source. `relativeIncrement` adds
- * to the stock and may be negative to take from it; `absoluteQuantity` sets it.
+ * to the stock — the API refuses a negative one with a 400, because taking
+ * stock out is a loss, with a reason, and goes through `losses` — and
+ * `absoluteQuantity` sets it.
  */
-export type StockAdjustmentRequestDto =
+export type StockEntryRequestDto =
   { source: 'MANUAL'; relativeIncrement: number } | { source: 'MANUAL'; absoluteQuantity: number };

@@ -584,7 +584,7 @@ describe('giving stock entry', () => {
     renderMaterialsPage();
     await screen.findByRole('link', { name: /Cera de soja/ });
 
-    await user.click(screen.getByRole('button', { name: 'Dar entrada' }));
+    await user.click(screen.getByRole('button', { name: 'Ajustar estoque' }));
     const dialog = await screen.findByRole('dialog');
     const form = within(dialog);
     await user.selectOptions(await form.findByLabelText('Insumo'), 'mat-cera');
@@ -620,7 +620,7 @@ describe('giving stock entry', () => {
     renderMaterialsPage();
     await screen.findByRole('link', { name: /Cera de soja/ });
 
-    await user.click(screen.getByRole('button', { name: 'Dar entrada' }));
+    await user.click(screen.getByRole('button', { name: 'Ajustar estoque' }));
     const select = await within(await screen.findByRole('dialog')).findByLabelText('Insumo');
 
     expect(within(select).getByRole('option', { name: 'Cera de soja' })).toBeInTheDocument();
@@ -636,7 +636,7 @@ describe('giving stock entry', () => {
 
     const detail = await screen.findByRole('dialog');
     await user.click(await within(detail).findByRole('button', { name: 'Dar entrada' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Dar entrada no estoque' });
+    const dialog = await screen.findByRole('dialog', { name: 'Ajustar estoque' });
 
     expect(within(dialog).queryByLabelText('Insumo')).not.toBeInTheDocument();
     expect(within(dialog).getByText('Cera de soja')).toBeInTheDocument();
@@ -658,7 +658,7 @@ describe('giving stock entry', () => {
 
     const detail = await screen.findByRole('dialog');
     await user.click(await within(detail).findByRole('button', { name: 'Dar entrada' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Dar entrada no estoque' });
+    const dialog = await screen.findByRole('dialog', { name: 'Ajustar estoque' });
     await user.click(within(dialog).getByRole('button', { name: 'Registrar entrada' }));
 
     expect(await within(dialog).findByText('Informe a quantidade.')).toBeInTheDocument();
@@ -672,7 +672,7 @@ describe('giving stock entry', () => {
 
     const detail = await screen.findByRole('dialog');
     await user.click(await within(detail).findByRole('button', { name: 'Dar entrada' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Dar entrada no estoque' });
+    const dialog = await screen.findByRole('dialog', { name: 'Ajustar estoque' });
     await user.type(within(dialog).getByLabelText('Quantidade que entrou'), '0');
     await user.click(within(dialog).getByRole('button', { name: 'Registrar entrada' }));
 
@@ -736,7 +736,7 @@ describe('the forms on a phone', () => {
 
     const detail = await screen.findByRole('dialog');
     await user.click(await within(detail).findByRole('button', { name: 'Dar entrada' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Dar entrada no estoque' });
+    const dialog = await screen.findByRole('dialog', { name: 'Ajustar estoque' });
 
     expect(within(dialog).getByLabelText('Quantidade que entrou')).toHaveAttribute(
       'inputmode',
@@ -825,6 +825,7 @@ describe('discontinuing, reactivating and deleting', () => {
       bomItems: 2,
       purchaseItems: 0,
       stockMovements: 0,
+      stockLosses: 0,
       total: 5,
     };
 
@@ -873,6 +874,7 @@ describe('discontinuing, reactivating and deleting', () => {
               bomItems: 4,
               purchaseItems: 2,
               stockMovements: 7,
+              stockLosses: 0,
               total: 14,
             }),
             { status: 422 },
@@ -888,6 +890,61 @@ describe('discontinuing, reactivating and deleting', () => {
           'Em uso em 1 venda, 4 fichas técnicas, 2 compras e 7 movimentações de estoque.',
         ),
       ).toBeInTheDocument();
+    });
+
+    it('counts the registered stock losses too, in the sentence and in the total', async () => {
+      const user = userEvent.setup();
+      server.use(
+        http.delete(`${API}/materials/mat-cera`, () =>
+          HttpResponse.json(
+            apiErrorBody(422, 'ENTITY_IN_USE', {
+              ...IN_USE,
+              saleItems: 3,
+              bomItems: 2,
+              stockLosses: 4,
+              total: 9,
+            }),
+            { status: 422 },
+          ),
+        ),
+        ...materialsHandlers(),
+      );
+
+      await tryToDelete(user);
+
+      const dialog = await screen.findByRole('alertdialog', {
+        name: 'Não dá para excluir este insumo',
+      });
+      expect(
+        within(dialog).getByText('Em uso em 3 vendas, 2 fichas técnicas e 4 perdas registradas.'),
+      ).toBeInTheDocument();
+      // Losses are history, so the way out is the same: discontinue.
+      expect(
+        within(dialog).getByRole('button', { name: 'Descontinuar em vez de excluir' }),
+      ).toBeInTheDocument();
+    });
+
+    it('is blocked by registered losses alone, with nothing else pointing at the material', async () => {
+      const user = userEvent.setup();
+      server.use(
+        http.delete(`${API}/materials/mat-cera`, () =>
+          HttpResponse.json(
+            apiErrorBody(422, 'ENTITY_IN_USE', {
+              ...IN_USE,
+              saleItems: 0,
+              bomItems: 0,
+              stockLosses: 1,
+              total: 1,
+            }),
+            { status: 422 },
+          ),
+        ),
+        ...materialsHandlers(),
+      );
+
+      await tryToDelete(user);
+
+      expect(await screen.findByText('Em uso em 1 perda registrada.')).toBeInTheDocument();
     });
 
     it('discontinues instead when that is what the person chooses', async () => {

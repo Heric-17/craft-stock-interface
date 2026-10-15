@@ -48,6 +48,15 @@ export const COMPOSITE_PRODUCT_ROUTES = {
   detail: ':id',
 } as const;
 
+/**
+ * The screens under "Insumos", as segments of its path: the loss history. Visible
+ * text like the rest of the address, so in Portuguese, and kept here with every
+ * other path.
+ */
+export const MATERIAL_ROUTES = {
+  losses: 'perdas',
+} as const;
+
 /** The groups of the mockups, in the order they are drawn. */
 export const NAV_GROUPS: readonly NavGroup[] = [
   { label: 'Operação', entries: [NAV.invoices] },

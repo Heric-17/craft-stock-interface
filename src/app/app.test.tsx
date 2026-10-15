@@ -8,6 +8,7 @@ import { ApiError } from '@/shared/api/api-error';
 import { refreshSucceeds } from '@/test/auth';
 import { compositeProductsHandlers } from '@/test/fixtures/composite-products';
 import { materialsHandlers } from '@/test/fixtures/materials';
+import { lossesHandlers } from '@/test/fixtures/stock-losses';
 import { server } from '@/test/msw/server';
 import { PHONE_WIDTH, setViewportWidth } from '@/test/viewport';
 
@@ -72,7 +73,12 @@ describe('application shell', () => {
   // The shell is behind the guard: a session the browser still holds opens it.
   // `/insumos` is a real screen now, so the API it reads answers too.
   beforeEach(() => {
-    server.use(refreshSucceeds(), ...materialsHandlers(), ...compositeProductsHandlers());
+    server.use(
+      refreshSucceeds(),
+      ...materialsHandlers(),
+      ...compositeProductsHandlers(),
+      ...lossesHandlers(),
+    );
   });
 
   it('opens on the invoice import screen, with the installation name in the sidebar', async () => {
@@ -187,6 +193,42 @@ describe('application shell', () => {
     );
   });
 
+  it('shows the loss history under the materials in the breadcrumb, with the menu still marking the materials', async () => {
+    renderApp('/insumos/perdas');
+    await screen.findByRole('heading', { name: 'Perdas de estoque', level: 1 });
+
+    expect(
+      within(breadcrumb())
+        .getAllByRole('listitem')
+        .map((crumb) => crumb.textContent),
+    ).toEqual(['CraftStock', 'Insumos', 'Perdas']);
+    expect(within(breadcrumb()).getByRole('link', { name: 'Insumos' })).toHaveAttribute(
+      'href',
+      '/insumos',
+    );
+    expect(within(menu()).getByRole('link', { name: 'Insumos' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
+  it('gets from the materials to their loss history and back', async () => {
+    const user = userEvent.setup();
+    const router = renderApp('/insumos');
+
+    await user.click(await screen.findByRole('link', { name: 'Perdas' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Perdas de estoque', level: 1 }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/insumos/perdas');
+
+    await user.click(screen.getByRole('link', { name: 'Voltar para insumos' }));
+
+    expect(await screen.findByRole('heading', { name: 'Insumos', level: 1 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/insumos');
+  });
+
   it('opens a product from the list and comes back to it', async () => {
     const user = userEvent.setup();
     const router = renderApp('/fichas-tecnicas');
@@ -224,7 +266,12 @@ describe('application shell', () => {
 
 describe('application shell on a phone', () => {
   beforeEach(() => {
-    server.use(refreshSucceeds(), ...materialsHandlers(), ...compositeProductsHandlers());
+    server.use(
+      refreshSucceeds(),
+      ...materialsHandlers(),
+      ...compositeProductsHandlers(),
+      ...lossesHandlers(),
+    );
     setViewportWidth(PHONE_WIDTH);
   });
 

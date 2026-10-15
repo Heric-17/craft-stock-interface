@@ -1,5 +1,6 @@
-import { Archive, ArchiveRestore, Pencil, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Pencil, Trash2, TrendingDown } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { toast } from 'sonner';
 
 import { isApiError, type ApiError } from '@/shared/api/api-error';
@@ -32,6 +33,8 @@ import { StockActions } from './stock-actions';
 interface MaterialDetailSheetProps {
   /** The material to show, or `null` while the sheet is closed. */
   materialId: string | null;
+  /** Where the loss history is, relative to the screen this opens over. */
+  lossesPath: string;
   onClose: () => void;
   onEdit: (material: Material) => void;
   onAdjustStock: (material: Material, kind: StockAdjustmentKind) => void;
@@ -45,6 +48,7 @@ interface MaterialDetailSheetProps {
  */
 export function MaterialDetailSheet({
   materialId,
+  lossesPath,
   onClose,
   onEdit,
   onAdjustStock,
@@ -63,6 +67,7 @@ export function MaterialDetailSheet({
         <DetailBody
           key={materialId}
           materialId={materialId}
+          lossesPath={lossesPath}
           onClose={onClose}
           onEdit={onEdit}
           onAdjustStock={onAdjustStock}
@@ -76,6 +81,7 @@ type Dialog = 'discontinue' | 'delete' | { inUse: ApiError } | null;
 
 function DetailBody({
   materialId,
+  lossesPath,
   onClose,
   onEdit,
   onAdjustStock,
@@ -199,6 +205,13 @@ function DetailBody({
         </dl>
 
         <PriceHistorySection materialId={material.id} />
+
+        <Button asChild variant="outline" className="shrink-0">
+          <Link to={`${lossesPath}?materialId=${encodeURIComponent(material.id)}`}>
+            <TrendingDown aria-hidden="true" />
+            Ver perdas deste insumo
+          </Link>
+        </Button>
 
         <div className="border-border flex flex-col gap-2 border-t pt-4">
           {material.isActive ? (

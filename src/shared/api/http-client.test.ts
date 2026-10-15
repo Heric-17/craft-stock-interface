@@ -80,6 +80,7 @@ describe('http-client', () => {
               bomItems: 0,
               purchaseItems: 0,
               stockMovements: 0,
+              stockLosses: 0,
               total: 3,
             },
             path: '/materials/m1',

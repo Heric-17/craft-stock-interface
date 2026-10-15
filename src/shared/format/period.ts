@@ -188,3 +188,49 @@ function formatInstant(instant: number): string {
 
   return `${wall}${sign}${hours}:${minutes}`;
 }
+
+/**
+ * What a period field holds: one of the presets, or two days typed in. Kept as
+ * what the person chose and turned into a range by {@link resolvePeriod}, so the
+ * field never holds an instant it made up.
+ */
+export type PeriodSelection =
+  { kind: 'preset'; preset: PeriodPreset } | ({ kind: 'custom' } & Partial<CivilDateRange>);
+
+export type PeriodResolution =
+  | { ok: true; range: PeriodRange }
+  | {
+      ok: false;
+      /** A day is still missing, or the end comes before the start. */
+      reason: 'INCOMPLETE' | 'INVALID';
+    };
+
+/**
+ * The range a selection means, or why it does not mean one yet. A custom period
+ * with an empty day is not an error — the person is still typing — and one that
+ * ends before it starts is, and the field says so instead of asking the API.
+ */
+export function resolvePeriod(
+  selection: PeriodSelection,
+  now: Date = new Date(),
+): PeriodResolution {
+  if (selection.kind === 'preset') {
+    return { ok: true, range: buildPeriodRange(selection.preset, now) };
+  }
+
+  const { startDate, endDate } = selection;
+
+  if (startDate === undefined || startDate === '' || endDate === undefined || endDate === '') {
+    return { ok: false, reason: 'INCOMPLETE' };
+  }
+
+  try {
+    return { ok: true, range: buildPeriodRange({ startDate, endDate }, now) };
+  } catch (error) {
+    if (error instanceof InvalidPeriodError) {
+      return { ok: false, reason: 'INVALID' };
+    }
+
+    throw error;
+  }
+}

@@ -362,7 +362,7 @@ describe('the list on a phone', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(screen.getByRole('list', { name: 'Insumos' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Novo insumo' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dar entrada' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ajustar estoque' })).toBeInTheDocument();
   });
 
   it('keeps the cards on a tablet too, where the sidebar leaves no room for five columns', async () => {

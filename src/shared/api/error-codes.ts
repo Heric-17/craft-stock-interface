@@ -24,6 +24,7 @@ export const NON_DOMAIN_ERROR_CODES = [
 /** Domain failures that carry structured `details`. */
 export const STRUCTURED_DETAIL_CODES = [
   'ENTITY_IN_USE',
+  'INSUFFICIENT_STOCK',
   'CONSUMPTION_UNIT_LOCKED',
   'DUPLICATE_INVOICE',
   'DISCOUNT_ALLOCATION',
@@ -49,7 +50,20 @@ export interface EntityInUseDetails {
   bomItems: number;
   purchaseItems: number;
   stockMovements: number;
+  /** Registered stock losses: history, so they block a delete. */
+  stockLosses: number;
   total: number;
+}
+
+/**
+ * A write-off larger than the stock. `stockQuantity` and `requestedQuantity` are
+ * `number`s in the material's own consumption unit, which the details do not
+ * repeat: the screen that sent the request knows it.
+ */
+export interface InsufficientStockDetails {
+  materialId: string;
+  stockQuantity: number;
+  requestedQuantity: number;
 }
 
 /** Why the consumption unit is locked. The way out differs for each. */
@@ -125,6 +139,7 @@ export interface ValidationIssue {
 /** The `details` of each code that has one, keyed by the code. */
 export interface ErrorDetailsByCode {
   ENTITY_IN_USE: EntityInUseDetails;
+  INSUFFICIENT_STOCK: InsufficientStockDetails;
   CONSUMPTION_UNIT_LOCKED: ConsumptionUnitLockedDetails;
   DUPLICATE_INVOICE: DuplicateInvoiceDetails;
   DISCOUNT_ALLOCATION: DiscountAllocationDetails;
@@ -157,7 +172,22 @@ export function isEntityInUseDetails(value: unknown): value is EntityInUseDetail
     isRecord(value) &&
     typeof value.entityName === 'string' &&
     typeof value.entityId === 'string' &&
-    hasNumbers(value, ['saleItems', 'bomItems', 'purchaseItems', 'stockMovements', 'total'])
+    hasNumbers(value, [
+      'saleItems',
+      'bomItems',
+      'purchaseItems',
+      'stockMovements',
+      'stockLosses',
+      'total',
+    ])
+  );
+}
+
+export function isInsufficientStockDetails(value: unknown): value is InsufficientStockDetails {
+  return (
+    isRecord(value) &&
+    typeof value.materialId === 'string' &&
+    hasNumbers(value, ['stockQuantity', 'requestedQuantity'])
   );
 }
 
@@ -225,6 +255,7 @@ export function isUnsupportedImageMimeTypeDetails(
 const GUARDS: { [K in StructuredDetailCode]: (value: unknown) => value is ErrorDetailsByCode[K] } =
   {
     ENTITY_IN_USE: isEntityInUseDetails,
+    INSUFFICIENT_STOCK: isInsufficientStockDetails,
     CONSUMPTION_UNIT_LOCKED: isConsumptionUnitLockedDetails,
     DUPLICATE_INVOICE: isDuplicateInvoiceDetails,
     DISCOUNT_ALLOCATION: isDiscountAllocationDetails,

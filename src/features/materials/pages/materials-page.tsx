@@ -1,6 +1,6 @@
-import { Boxes, PackagePlus, Plus, SearchX } from 'lucide-react';
+import { Boxes, PackageMinus, Plus, SearchX, SlidersHorizontal } from 'lucide-react';
 import { useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 
 import { formatCount } from '@/shared/format';
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
@@ -31,7 +31,15 @@ const SEARCH_DELAY_MS = 300;
  */
 const DETAIL_PARAM = 'insumo';
 
-export function MaterialsPage() {
+interface MaterialsPageProps {
+  /**
+   * Where the loss history is, relative to this screen. The route table owns
+   * every path, so the page is told this one instead of spelling it.
+   */
+  lossesPath: string;
+}
+
+export function MaterialsPage({ lossesPath }: MaterialsPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const detailId = searchParams.get(DETAIL_PARAM);
 
@@ -95,8 +103,14 @@ export function MaterialsPage() {
               Novo insumo
             </Button>
             <Button onClick={() => setAdjusting({ open: true, kind: 'ENTRY' })}>
-              <PackagePlus aria-hidden="true" />
-              Dar entrada
+              <SlidersHorizontal aria-hidden="true" />
+              Ajustar estoque
+            </Button>
+            <Button asChild variant="outline">
+              <Link to={lossesPath}>
+                <PackageMinus aria-hidden="true" />
+                Perdas
+              </Link>
             </Button>
           </>
         }
@@ -161,6 +175,7 @@ export function MaterialsPage() {
 
       <MaterialDetailSheet
         materialId={detailOpen ? detailId : null}
+        lossesPath={lossesPath}
         onClose={closeDetail}
         onEdit={(material) => setEditing({ open: true, material })}
         onAdjustStock={(material, kind) => setAdjusting({ open: true, kind, material })}

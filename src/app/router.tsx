@@ -7,13 +7,20 @@ import {
   CompositeProductEditorPage,
   CompositeProductsPage,
   InvoiceImportPage,
+  MaterialLossesPage,
   MaterialsPage,
   SalesPage,
   SettingsPage,
   ShortagesPage,
   SpendingPage,
 } from './lazy-pages';
-import { COMPOSITE_PRODUCT_ROUTES, HOME_PATH, NAV, type NavEntry } from './navigation';
+import {
+  COMPOSITE_PRODUCT_ROUTES,
+  HOME_PATH,
+  MATERIAL_ROUTES,
+  NAV,
+  type NavEntry,
+} from './navigation';
 import { NotFoundPage } from './pages/not-found-page';
 import { RouteErrorBoundary } from './route-error-boundary';
 import type { RouteHandle } from './route-handle';
@@ -57,6 +64,29 @@ function compositeProductRoutes(): RouteObject {
   };
 }
 
+/**
+ * The list of materials and the loss history under it, the same way as the
+ * products: the list is the index of its own path and the history a sibling
+ * screen, so the links between them are relative.
+ */
+function materialRoutes(): RouteObject {
+  const handle: RouteHandle = { crumb: NAV.materials.label };
+
+  return {
+    path: NAV.materials.path,
+    handle,
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      { index: true, element: <MaterialsPage lossesPath={MATERIAL_ROUTES.losses} /> },
+      {
+        path: MATERIAL_ROUTES.losses,
+        element: <MaterialLossesPage />,
+        handle: { crumb: 'Perdas' } satisfies RouteHandle,
+      },
+    ],
+  };
+}
+
 export const routes: RouteObject[] = [
   {
     path: '/login',
@@ -73,7 +103,7 @@ export const routes: RouteObject[] = [
         children: [
           { index: true, element: <Navigate to={HOME_PATH} replace /> },
           screen(NAV.invoices, InvoiceImportPage),
-          screen(NAV.materials, MaterialsPage),
+          materialRoutes(),
           compositeProductRoutes(),
           screen(NAV.sales, SalesPage),
           screen(NAV.shortages, ShortagesPage),

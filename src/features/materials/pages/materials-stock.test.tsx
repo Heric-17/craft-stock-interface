@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest';
 
 import { env } from '@/shared/config/env';
 import { NON_BREAKING_SPACE } from '@/shared/format';
+import { requireDecimalString } from '@/shared/money';
 import { apiErrorBody, cera, materialDto, materialsHandlers } from '@/test/fixtures/materials';
+import { lossResult } from '@/test/fixtures/stock-losses';
 import { renderMaterialsPage } from '@/test/render-materials-page';
 import { server } from '@/test/msw/server';
 import { VERBATIM } from '@/test/text';
@@ -16,27 +18,37 @@ const SPACE = NON_BREAKING_SPACE;
 
 type User = ReturnType<typeof userEvent.setup>;
 
-const DIALOG_NAME: Record<string, RegExp> = {
-  'Dar entrada': /Dar entrada no estoque/,
-  'Dar baixa': /Dar baixa no estoque/,
-  'Corrigir contagem': /Corrigir contagem do estoque/,
-};
+const WRITE_OFF = 'Dar baixa / perda';
 
-/** Opens a material and one of the three actions of its "Estoque" section. */
+/** Opens a material, one of the three actions of its "Estoque" section, and the panel it leads to. */
 async function openAction(user: User, action: string, route = '/insumos?insumo=mat-cera') {
   renderMaterialsPage(route);
   const detail = await screen.findByRole('dialog');
   await user.click(await within(detail).findByRole('button', { name: action }));
 
-  return screen.findByRole('dialog', { name: DIALOG_NAME[action]! });
+  const panel = await screen.findByRole('dialog', { name: 'Ajustar estoque' });
+
+  // The panel opens on the act that was asked for.
+  expect(within(panel).getByRole('radio', { name: action })).toBeChecked();
+
+  return panel;
 }
 
-/** The route all three go to, recording what each one sends. */
+/** The route an entry and a recount go to, recording what each one sends. */
 function stockRoute(bodies: unknown[], answer = cera) {
   return http.post(`${API}/materials/mat-cera/stock-entries`, async ({ request }) => {
     bodies.push(await request.json());
 
     return HttpResponse.json(answer);
+  });
+}
+
+/** The route a write-off goes to: a loss, with the balance it leaves. */
+function lossRoute(bodies: unknown[], answer = lossResult()) {
+  return http.post(`${API}/materials/mat-cera/losses`, async ({ request }) => {
+    bodies.push(await request.json());
+
+    return HttpResponse.json(answer, { status: 201 });
   });
 }
 
@@ -50,7 +62,7 @@ describe('the stock section of a material', () => {
 
     expect(within(section).getByText(`680${SPACE}g`, VERBATIM)).toBeInTheDocument();
     expect(within(section).getByRole('button', { name: 'Dar entrada' })).toBeInTheDocument();
-    expect(within(section).getByRole('button', { name: 'Dar baixa' })).toBeInTheDocument();
+    expect(within(section).getByRole('button', { name: WRITE_OFF })).toBeInTheDocument();
     expect(within(section).getByRole('button', { name: 'Corrigir contagem' })).toBeInTheDocument();
   });
 
@@ -63,7 +75,7 @@ describe('the stock section of a material', () => {
     const detail = await screen.findByRole('dialog');
     await within(detail).findByRole('region', { name: 'Estoque' });
 
-    for (const name of ['Dar entrada', 'Dar baixa', 'Corrigir contagem']) {
+    for (const name of ['Dar entrada', WRITE_OFF, 'Corrigir contagem']) {
       expect(within(detail).queryByRole('button', { name })).not.toBeInTheDocument();
     }
   });
@@ -75,131 +87,439 @@ describe('the stock section of a material', () => {
 
     const detail = await screen.findByRole('dialog');
 
-    for (const name of ['Dar entrada', 'Dar baixa', 'Corrigir contagem']) {
+    for (const name of ['Dar entrada', WRITE_OFF, 'Corrigir contagem']) {
       expect(await within(detail).findByRole('button', { name })).toHaveClass('min-h-16');
     }
   });
 
-  it('lets the page header give an entry to any active material', async () => {
+  it('gives each act an icon and a tone of its own, so a loss does not look like an entry', async () => {
+    server.use(...materialsHandlers());
+    renderMaterialsPage('/insumos?insumo=mat-cera');
+
+    const detail = await screen.findByRole('dialog');
+    await within(detail).findByRole('button', { name: 'Dar entrada' });
+    const tones = ['Dar entrada', WRITE_OFF, 'Corrigir contagem'].map((name) => {
+      const button = within(detail).getByRole('button', { name });
+      const badge = button.querySelector('span[aria-hidden="true"]');
+
+      expect(badge?.querySelector('svg')).not.toBeNull();
+
+      return badge?.className;
+    });
+
+    expect(new Set(tones).size).toBe(3);
+  });
+
+  it('lets the page header adjust the stock of any active material', async () => {
     const user = userEvent.setup();
     server.use(...materialsHandlers());
     renderMaterialsPage();
     await screen.findByRole('link', { name: /Cera de soja/ });
 
-    await user.click(screen.getByRole('button', { name: 'Dar entrada' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Dar entrada no estoque' });
+    await user.click(screen.getByRole('button', { name: 'Ajustar estoque' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Ajustar estoque' });
 
     expect(await within(dialog).findByLabelText('Insumo')).toBeInTheDocument();
+    expect(within(dialog).getByRole('radio', { name: 'Dar entrada' })).toBeChecked();
+  });
+});
+
+describe('the three acts of the adjustment panel', () => {
+  it('shows them as three choices of one group, each named and with its own icon and tone', async () => {
+    const user = userEvent.setup();
+    server.use(...materialsHandlers());
+
+    const panel = await openAction(user, 'Dar entrada');
+    const group = within(panel).getByRole('radiogroup', { name: 'O que você quer fazer' });
+    const radios = within(group).getAllByRole('radio');
+
+    expect(radios.map((radio) => radio.textContent)).toEqual([
+      'Dar entrada',
+      WRITE_OFF,
+      'Corrigir contagem',
+    ]);
+    expect(radios.map((radio) => radio.querySelector('svg'))).not.toContain(null);
+    expect(new Set(radios.map((radio) => radio.querySelector('span')?.className)).size).toBe(3);
+  });
+
+  it('marks the chosen one and changes the words and the fields with it', async () => {
+    const user = userEvent.setup();
+    server.use(...materialsHandlers());
+
+    const panel = await openAction(user, 'Dar entrada');
+    expect(within(panel).getByLabelText('Quantidade que entrou')).toBeInTheDocument();
+    expect(within(panel).queryByLabelText('Motivo da baixa')).not.toBeInTheDocument();
+
+    await user.click(within(panel).getByRole('radio', { name: WRITE_OFF }));
+
+    expect(within(panel).getByRole('radio', { name: WRITE_OFF })).toBeChecked();
+    expect(within(panel).getByRole('radio', { name: 'Dar entrada' })).not.toBeChecked();
+    expect(within(panel).getByLabelText('Quantidade que saiu')).toBeInTheDocument();
+    expect(within(panel).getByLabelText('Motivo da baixa')).toBeInTheDocument();
+    expect(within(panel).getByLabelText('Observação (opcional)')).toBeInTheDocument();
+
+    await user.click(within(panel).getByRole('radio', { name: 'Corrigir contagem' }));
+
+    expect(within(panel).getByLabelText('Quantidade contada')).toBeInTheDocument();
+    expect(within(panel).queryByLabelText('Motivo da baixa')).not.toBeInTheDocument();
+  });
+
+  it('does not carry a quantity typed for one act over to another', async () => {
+    const user = userEvent.setup();
+    server.use(...materialsHandlers());
+
+    const panel = await openAction(user, 'Dar entrada');
+    await user.type(within(panel).getByLabelText('Quantidade que entrou'), '320');
+    await user.click(within(panel).getByRole('radio', { name: WRITE_OFF }));
+
+    expect(within(panel).getByLabelText('Quantidade que saiu')).toHaveValue('');
   });
 });
 
 describe('a write-off', () => {
-  it('takes from the stock: it is sent as a negative increment, and the preview says what is left', async () => {
+  async function fillWriteOff(
+    user: User,
+    panel: HTMLElement,
+    values: { quantity: string; reason?: string; observation?: string },
+  ) {
+    const form = within(panel);
+    await user.type(form.getByLabelText('Quantidade que saiu'), values.quantity);
+
+    if (values.reason !== undefined) {
+      await user.selectOptions(form.getByLabelText('Motivo da baixa'), values.reason);
+    }
+
+    if (values.observation !== undefined) {
+      await user.type(form.getByLabelText('Observação (opcional)'), values.observation);
+    }
+  }
+
+  it('is a loss: it goes to losses, with the quantity taken, positive, and its reason', async () => {
     const user = userEvent.setup();
     const bodies: unknown[] = [];
-    server.use(stockRoute(bodies, materialDto({ stockQuantity: 600 })), ...materialsHandlers());
+    server.use(lossRoute(bodies), ...materialsHandlers());
 
-    const dialog = await openAction(user, 'Dar baixa');
-    expect(within(dialog).getByText(/O motivo não fica registrado/)).toBeInTheDocument();
+    const panel = await openAction(user, WRITE_OFF);
+    expect(
+      within(panel).getByText(/Fica no histórico de perdas, com o motivo/),
+    ).toBeInTheDocument();
+    expect(within(panel).queryByText(/O motivo não fica registrado/)).not.toBeInTheDocument();
 
-    await user.type(within(dialog).getByLabelText('Quantidade que saiu'), '80');
-
-    expect(within(dialog).getByText(/Prévia: o estoque ficará com/)).toBeInTheDocument();
-    expect(within(dialog).getByText(`600${SPACE}g`, VERBATIM)).toBeInTheDocument();
-
-    await user.click(within(dialog).getByRole('button', { name: 'Registrar baixa' }));
+    await fillWriteOff(user, panel, {
+      quantity: '80',
+      reason: 'BREAKAGE',
+      observation: 'caiu da prateleira',
+    });
+    await user.click(within(panel).getByRole('button', { name: 'Registrar baixa' }));
 
     expect(
       await screen.findByText(
-        `Baixa registrada em Cera de soja. Estoque agora: 600${SPACE}g.`,
+        `Baixa registrada em Cera de soja. Estoque agora: 600${SPACE}g. Valor perdido: R$${SPACE}2,24.`,
         VERBATIM,
       ),
     ).toBeInTheDocument();
-    expect(bodies).toEqual([{ source: 'MANUAL', relativeIncrement: -80 }]);
+    expect(bodies).toEqual([
+      { quantity: 80, reason: 'BREAKAGE', observation: 'caiu da prateleira' },
+    ]);
   });
 
-  it('converts kilos: 0,5 kg leaves as 500 g', async () => {
+  it('says what the loss was worth, as the API derived it: 5 of 10 biscuits at R$ 1,00 leave R$ 5,00', async () => {
+    const user = userEvent.setup();
+    server.use(
+      lossRoute(
+        [],
+        lossResult({
+          quantity: 5,
+          value: requireDecimalString('5.00'),
+          costBasisAmount: requireDecimalString('1.00'),
+          costBasisQuantity: 1,
+          stockQuantityAfter: 5,
+        }),
+      ),
+      ...materialsHandlers(),
+    );
+
+    const panel = await openAction(user, WRITE_OFF);
+    await fillWriteOff(user, panel, { quantity: '5', reason: 'BREAKAGE' });
+    await user.click(within(panel).getByRole('button', { name: 'Registrar baixa' }));
+
+    expect(
+      await screen.findByText(
+        `Baixa registrada em Cera de soja. Estoque agora: 5${SPACE}g. Valor perdido: R$${SPACE}5,00.`,
+        VERBATIM,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('never goes to stock-entries, which refuses a negative increment', async () => {
+    const user = userEvent.setup();
+    let entries = 0;
+    server.use(
+      http.post(`${API}/materials/mat-cera/stock-entries`, () => {
+        entries += 1;
+
+        return HttpResponse.json(cera);
+      }),
+      lossRoute([]),
+      ...materialsHandlers(),
+    );
+
+    const panel = await openAction(user, WRITE_OFF);
+    await fillWriteOff(user, panel, { quantity: '80', reason: 'LOST' });
+    await user.click(within(panel).getByRole('button', { name: 'Registrar baixa' }));
+
+    await screen.findByText(/Baixa registrada/);
+    expect(entries).toBe(0);
+  });
+
+  it('shows the balance it will leave before it is confirmed, as a preview', async () => {
+    const user = userEvent.setup();
+    server.use(...materialsHandlers());
+
+    const panel = await openAction(user, WRITE_OFF);
+    await fillWriteOff(user, panel, { quantity: '80' });
+
+    expect(within(panel).getByText(/Prévia: saldo depois da baixa/)).toBeInTheDocument();
+    expect(within(panel).getByText(`600${SPACE}g`, VERBATIM)).toBeInTheDocument();
+  });
+
+  it('leaves the observation out of the request when there is none', async () => {
     const user = userEvent.setup();
     const bodies: unknown[] = [];
-    server.use(stockRoute(bodies), ...materialsHandlers());
+    server.use(lossRoute(bodies), ...materialsHandlers());
 
-    const dialog = await openAction(user, 'Dar baixa');
-    await user.type(within(dialog).getByLabelText('Quantidade que saiu'), '0,5');
-    await user.click(within(dialog).getByRole('button', { name: 'kg' }));
-
-    // The echo says what will be sent: half a kilo is 500 g, and the preview agrees.
-    expect(within(dialog).getByText(`500${SPACE}g`, VERBATIM)).toBeInTheDocument();
-    expect(within(dialog).getByText(`180${SPACE}g`, VERBATIM)).toBeInTheDocument();
-
-    await user.click(within(dialog).getByRole('button', { name: 'Registrar baixa' }));
+    const panel = await openAction(user, WRITE_OFF);
+    await fillWriteOff(user, panel, { quantity: '80', reason: 'EXPIRED' });
+    await user.click(within(panel).getByRole('button', { name: 'Registrar baixa' }));
 
     await waitFor(() => expect(bodies).toHaveLength(1));
-    expect(bodies[0]).toEqual({ source: 'MANUAL', relativeIncrement: -500 });
+    expect(bodies[0]).toEqual({ quantity: 80, reason: 'EXPIRED' });
   });
 
-  it('is refused before it is sent when it is larger than the stock, and says how much there is', async () => {
+  it('offers exactly the five reasons of the closed list, and none is chosen for you', async () => {
+    const user = userEvent.setup();
+    server.use(...materialsHandlers());
+
+    const panel = await openAction(user, WRITE_OFF);
+    const reasons = within(panel).getByLabelText('Motivo da baixa');
+
+    expect(reasons).toHaveValue('');
+    expect(
+      within(reasons)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Escolha o motivo', 'Quebrou', 'Venceu', 'Estragou', 'Perdido', 'Outro']);
+  });
+
+  it('asks for a reason instead of sending without one', async () => {
     const user = userEvent.setup();
     const bodies: unknown[] = [];
-    server.use(stockRoute(bodies), ...materialsHandlers());
+    server.use(lossRoute(bodies), ...materialsHandlers());
 
-    const dialog = await openAction(user, 'Dar baixa');
-    await user.type(within(dialog).getByLabelText('Quantidade que saiu'), '700');
+    const panel = await openAction(user, WRITE_OFF);
+    await fillWriteOff(user, panel, { quantity: '80' });
+    await user.click(within(panel).getByRole('button', { name: 'Registrar baixa' }));
 
-    const warning = `Não dá para dar baixa em mais do que há em estoque (680${SPACE}g).`;
-    expect(await within(dialog).findByText(warning, VERBATIM)).toBeInTheDocument();
-    expect(within(dialog).queryByText(/Prévia/)).not.toBeInTheDocument();
-
-    await user.click(within(dialog).getByRole('button', { name: 'Registrar baixa' }));
-
-    expect((await within(dialog).findAllByText(warning, VERBATIM)).length).toBeGreaterThan(0);
+    expect(await within(panel).findByText('Escolha o motivo da baixa.')).toBeInTheDocument();
     expect(bodies).toEqual([]);
+  });
+
+  it('counts the observation against its limit of 500 characters', async () => {
+    const user = userEvent.setup();
+    server.use(...materialsHandlers());
+
+    const panel = await openAction(user, WRITE_OFF);
+    const note = within(panel).getByLabelText('Observação (opcional)');
+
+    expect(note).toHaveAttribute('maxlength', '500');
+    await user.type(note, 'caiu');
+    expect(within(panel).getByText('4/500')).toBeInTheDocument();
+  });
+
+  it('converts kilos: 0,5 kg leaves as 500 g, and the preview agrees with the echo', async () => {
+    const user = userEvent.setup();
+    const bodies: unknown[] = [];
+    server.use(lossRoute(bodies), ...materialsHandlers());
+
+    const panel = await openAction(user, WRITE_OFF);
+    await user.type(within(panel).getByLabelText('Quantidade que saiu'), '0,5');
+    await user.click(within(panel).getByRole('button', { name: 'kg' }));
+
+    expect(within(panel).getByText(`500${SPACE}g`, VERBATIM)).toBeInTheDocument();
+    expect(within(panel).getByText(`180${SPACE}g`, VERBATIM)).toBeInTheDocument();
+
+    await user.selectOptions(within(panel).getByLabelText('Motivo da baixa'), 'SPOILAGE');
+    await user.click(within(panel).getByRole('button', { name: 'Registrar baixa' }));
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toMatchObject({ quantity: 500 });
   });
 
   it('can take everything, down to zero', async () => {
     const user = userEvent.setup();
     const bodies: unknown[] = [];
-    server.use(stockRoute(bodies, materialDto({ stockQuantity: 0 })), ...materialsHandlers());
+    server.use(
+      lossRoute(bodies, lossResult({ quantity: 680, stockQuantityAfter: 0 })),
+      ...materialsHandlers(),
+    );
 
-    const dialog = await openAction(user, 'Dar baixa');
-    await user.type(within(dialog).getByLabelText('Quantidade que saiu'), '680');
+    const panel = await openAction(user, WRITE_OFF);
+    await fillWriteOff(user, panel, { quantity: '680', reason: 'OTHER' });
 
-    expect(within(dialog).getByText(`0${SPACE}g`, VERBATIM)).toBeInTheDocument();
+    expect(within(panel).getByText(`0${SPACE}g`, VERBATIM)).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: 'Registrar baixa' }));
+    await user.click(within(panel).getByRole('button', { name: 'Registrar baixa' }));
 
-    await waitFor(() => expect(bodies).toEqual([{ source: 'MANUAL', relativeIncrement: -680 }]));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toMatchObject({ quantity: 680 });
   });
 
   it('asks for a quantity above zero instead of sending nothing', async () => {
     const user = userEvent.setup();
     const bodies: unknown[] = [];
-    server.use(stockRoute(bodies), ...materialsHandlers());
+    server.use(lossRoute(bodies), ...materialsHandlers());
 
-    const dialog = await openAction(user, 'Dar baixa');
-    await user.type(within(dialog).getByLabelText('Quantidade que saiu'), '0');
-    await user.click(within(dialog).getByRole('button', { name: 'Registrar baixa' }));
+    const panel = await openAction(user, WRITE_OFF);
+    await fillWriteOff(user, panel, { quantity: '0', reason: 'LOST' });
+    await user.click(within(panel).getByRole('button', { name: 'Registrar baixa' }));
 
     expect(
-      await within(dialog).findByText('A baixa precisa ser maior do que zero.'),
+      await within(panel).findByText('A baixa precisa ser maior do que zero.'),
     ).toBeInTheDocument();
     expect(bodies).toEqual([]);
   });
+});
 
-  it('still shows the API refusal in the form if the stock changed under it', async () => {
+describe('a write-off larger than the stock', () => {
+  it('never leaves the screen: the button is off and the balance is on display instead', async () => {
+    const user = userEvent.setup();
+    const bodies: unknown[] = [];
+    server.use(lossRoute(bodies), ...materialsHandlers());
+
+    const panel = await openAction(user, WRITE_OFF);
+    await user.type(within(panel).getByLabelText('Quantidade que saiu'), '700');
+    await user.selectOptions(within(panel).getByLabelText('Motivo da baixa'), 'BREAKAGE');
+
+    expect(
+      await within(panel).findByText(`Você tem apenas 680${SPACE}g em estoque.`, VERBATIM),
+    ).toBeInTheDocument();
+    expect(within(panel).queryByText(/Prévia/)).not.toBeInTheDocument();
+
+    const submit = within(panel).getByRole('button', { name: 'Registrar baixa' });
+    expect(submit).toBeDisabled();
+
+    await user.click(submit);
+    expect(bodies).toEqual([]);
+  });
+
+  it('is judged in the base unit even when it is typed in kilos', async () => {
+    const user = userEvent.setup();
+    server.use(...materialsHandlers());
+
+    const panel = await openAction(user, WRITE_OFF);
+    await user.type(within(panel).getByLabelText('Quantidade que saiu'), '0,7');
+    await user.click(within(panel).getByRole('button', { name: 'kg' }));
+
+    expect(within(panel).getByRole('button', { name: 'Registrar baixa' })).toBeDisabled();
+    expect(
+      within(panel).getByText(`Você tem apenas 680${SPACE}g em estoque.`, VERBATIM),
+    ).toBeInTheDocument();
+  });
+
+  it('turns the button back on as soon as the quantity fits', async () => {
+    const user = userEvent.setup();
+    server.use(...materialsHandlers());
+
+    const panel = await openAction(user, WRITE_OFF);
+    const quantity = within(panel).getByLabelText('Quantidade que saiu');
+    await user.type(quantity, '700');
+    expect(within(panel).getByRole('button', { name: 'Registrar baixa' })).toBeDisabled();
+
+    await user.clear(quantity);
+    await user.type(quantity, '680');
+
+    expect(within(panel).getByRole('button', { name: 'Registrar baixa' })).toBeEnabled();
+  });
+
+  it('is not what blocks an entry, which may be any size', async () => {
+    const user = userEvent.setup();
+    server.use(...materialsHandlers());
+
+    const panel = await openAction(user, 'Dar entrada');
+    await user.type(within(panel).getByLabelText('Quantidade que entrou'), '100000');
+
+    expect(within(panel).getByRole('button', { name: 'Registrar entrada' })).toBeEnabled();
+  });
+
+  it('still shows the API refusal, with the balance from its details, when the stock changed under the screen', async () => {
+    const user = userEvent.setup();
+    // The screen read 680 g. Meanwhile, in another tab, the stock went down to 300 g.
+    const materials = [cera];
+    const bodies: unknown[] = [];
+    server.use(
+      http.post(`${API}/materials/mat-cera/losses`, async ({ request }) => {
+        bodies.push(await request.json());
+        materials[0] = materialDto({ stockQuantity: 300 });
+
+        return HttpResponse.json(
+          apiErrorBody(422, 'INSUFFICIENT_STOCK', {
+            materialId: 'mat-cera',
+            stockQuantity: 300,
+            requestedQuantity: 400,
+          }),
+          { status: 422 },
+        );
+      }),
+      ...materialsHandlers({ materials }),
+    );
+
+    const panel = await openAction(user, WRITE_OFF);
+    await user.type(within(panel).getByLabelText('Quantidade que saiu'), '400');
+    await user.selectOptions(within(panel).getByLabelText('Motivo da baixa'), 'BREAKAGE');
+    // 400 fits in what the screen knows, 680: nothing stops it here.
+    expect(within(panel).getByRole('button', { name: 'Registrar baixa' })).toBeEnabled();
+    await user.click(within(panel).getByRole('button', { name: 'Registrar baixa' }));
+
+    // The figure is the API's — 300 — and not the 680 the screen had.
+    expect(
+      await within(panel).findByText(`Você tem apenas 300${SPACE}g em estoque.`, VERBATIM),
+    ).toBeInTheDocument();
+    expect(bodies).toHaveLength(1);
+    // The panel stays open, with what was typed, and reads the new balance.
+    expect(within(panel).getByLabelText('Quantidade que saiu')).toHaveValue('400');
+    await waitFor(() =>
+      expect(within(panel).getByText(`300${SPACE}g`, VERBATIM)).toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(within(panel).getByRole('button', { name: 'Registrar baixa' })).toBeDisabled(),
+    );
+    // Neither the code nor the English message reaches the screen.
+    expect(document.body.textContent).not.toMatch(/INSUFFICIENT_STOCK|has only/);
+  });
+
+  it('writes the refusal in the unit of the material, from the API’s own number', async () => {
     const user = userEvent.setup();
     server.use(
-      http.post(`${API}/materials/mat-cera/stock-entries`, () =>
-        HttpResponse.json(apiErrorBody(422, 'INVALID_MATERIAL'), { status: 422 }),
+      http.post(`${API}/materials/mat-cera/losses`, () =>
+        HttpResponse.json(
+          apiErrorBody(422, 'INSUFFICIENT_STOCK', {
+            materialId: 'mat-cera',
+            stockQuantity: 1500,
+            requestedQuantity: 1600,
+          }),
+          { status: 422 },
+        ),
       ),
       ...materialsHandlers(),
     );
 
-    const dialog = await openAction(user, 'Dar baixa');
-    await user.type(within(dialog).getByLabelText('Quantidade que saiu'), '80');
-    await user.click(within(dialog).getByRole('button', { name: 'Registrar baixa' }));
+    const panel = await openAction(user, WRITE_OFF);
+    await user.type(within(panel).getByLabelText('Quantidade que saiu'), '100');
+    await user.selectOptions(within(panel).getByLabelText('Motivo da baixa'), 'LOST');
+    await user.click(within(panel).getByRole('button', { name: 'Registrar baixa' }));
 
     expect(
-      await within(dialog).findByText('Os dados do insumo não são válidos.'),
+      await within(panel).findByText(`Você tem apenas 1,5${SPACE}kg em estoque.`, VERBATIM),
     ).toBeInTheDocument();
   });
 });
@@ -210,14 +530,14 @@ describe('a recount', () => {
     const bodies: unknown[] = [];
     server.use(stockRoute(bodies, materialDto({ stockQuantity: 12 })), ...materialsHandlers());
 
-    const dialog = await openAction(user, 'Corrigir contagem');
-    expect(within(dialog).getByText(/exatamente o que você contou/)).toBeInTheDocument();
+    const panel = await openAction(user, 'Corrigir contagem');
+    expect(within(panel).getByText(/exatamente o que você contou/)).toBeInTheDocument();
 
-    await user.type(within(dialog).getByLabelText('Quantidade contada'), '12');
+    await user.type(within(panel).getByLabelText('Quantidade contada'), '12');
 
-    expect(within(dialog).getByText(/Prévia: o estoque ficará com/)).toBeInTheDocument();
+    expect(within(panel).getByText(/Prévia: o estoque ficará com/)).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: 'Salvar contagem' }));
+    await user.click(within(panel).getByRole('button', { name: 'Salvar contagem' }));
 
     expect(
       await screen.findByText(
@@ -233,9 +553,9 @@ describe('a recount', () => {
     const bodies: unknown[] = [];
     server.use(stockRoute(bodies, materialDto({ stockQuantity: 0 })), ...materialsHandlers());
 
-    const dialog = await openAction(user, 'Corrigir contagem');
-    await user.type(within(dialog).getByLabelText('Quantidade contada'), '0');
-    await user.click(within(dialog).getByRole('button', { name: 'Salvar contagem' }));
+    const panel = await openAction(user, 'Corrigir contagem');
+    await user.type(within(panel).getByLabelText('Quantidade contada'), '0');
+    await user.click(within(panel).getByRole('button', { name: 'Salvar contagem' }));
 
     await waitFor(() => expect(bodies).toEqual([{ source: 'MANUAL', absoluteQuantity: 0 }]));
   });
@@ -245,11 +565,21 @@ describe('a recount', () => {
     const bodies: unknown[] = [];
     server.use(stockRoute(bodies), ...materialsHandlers());
 
-    const dialog = await openAction(user, 'Corrigir contagem');
-    await user.click(within(dialog).getByRole('button', { name: 'Salvar contagem' }));
+    const panel = await openAction(user, 'Corrigir contagem');
+    await user.click(within(panel).getByRole('button', { name: 'Salvar contagem' }));
 
-    expect(await within(dialog).findByText('Informe a quantidade.')).toBeInTheDocument();
+    expect(await within(panel).findByText('Informe a quantidade.')).toBeInTheDocument();
     expect(bodies).toEqual([]);
+  });
+
+  it('is not limited by the stock: a count may be larger or smaller', async () => {
+    const user = userEvent.setup();
+    server.use(...materialsHandlers());
+
+    const panel = await openAction(user, 'Corrigir contagem');
+    await user.type(within(panel).getByLabelText('Quantidade contada'), '5000');
+
+    expect(within(panel).getByRole('button', { name: 'Salvar contagem' })).toBeEnabled();
   });
 });
 
@@ -259,12 +589,12 @@ describe('an entry', () => {
     const bodies: unknown[] = [];
     server.use(stockRoute(bodies, materialDto({ stockQuantity: 1000 })), ...materialsHandlers());
 
-    const dialog = await openAction(user, 'Dar entrada');
-    await user.type(within(dialog).getByLabelText('Quantidade que entrou'), '320');
+    const panel = await openAction(user, 'Dar entrada');
+    await user.type(within(panel).getByLabelText('Quantidade que entrou'), '320');
 
-    expect(within(dialog).getByText(`1${SPACE}kg`, VERBATIM)).toBeInTheDocument();
+    expect(within(panel).getByText(`1${SPACE}kg`, VERBATIM)).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: 'Registrar entrada' }));
+    await user.click(within(panel).getByRole('button', { name: 'Registrar entrada' }));
 
     await waitFor(() => expect(bodies).toEqual([{ source: 'MANUAL', relativeIncrement: 320 }]));
   });

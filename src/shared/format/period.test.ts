@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { buildPeriodRange, InvalidPeriodError, type PeriodRange } from './period';
+import { buildPeriodRange, InvalidPeriodError, resolvePeriod, type PeriodRange } from './period';
 
 /** Midday in Sao Paulo, so the day cannot be moved by an hour either way. */
 function noonIn(date: string): Date {
@@ -324,4 +324,42 @@ describe('the format the API reads', () => {
       expect(new Date(from).getTime()).toBeLessThan(new Date(to).getTime());
     },
   );
+});
+
+describe('resolvePeriod', () => {
+  const now = noonIn('2026-10-14');
+
+  it('turns a preset into the same range buildPeriodRange gives', () => {
+    expect(resolvePeriod({ kind: 'preset', preset: 'THIS_MONTH' }, now)).toEqual({
+      ok: true,
+      range: buildPeriodRange('THIS_MONTH', now),
+    });
+  });
+
+  it('turns two typed days into a range that ends at the start of the next day', () => {
+    expect(
+      resolvePeriod({ kind: 'custom', startDate: '2026-01-01', endDate: '2026-01-31' }, now),
+    ).toEqual({
+      ok: true,
+      range: { from: '2026-01-01T00:00:00-03:00', to: '2026-02-01T00:00:00-03:00' },
+    });
+  });
+
+  it('is not an error while a day is still missing, because the person is typing', () => {
+    expect(resolvePeriod({ kind: 'custom' }, now)).toEqual({ ok: false, reason: 'INCOMPLETE' });
+    expect(resolvePeriod({ kind: 'custom', startDate: '2026-01-01' }, now)).toEqual({
+      ok: false,
+      reason: 'INCOMPLETE',
+    });
+    expect(resolvePeriod({ kind: 'custom', startDate: '2026-01-01', endDate: '' }, now)).toEqual({
+      ok: false,
+      reason: 'INCOMPLETE',
+    });
+  });
+
+  it('says so when the period ends before it starts', () => {
+    expect(
+      resolvePeriod({ kind: 'custom', startDate: '2026-02-01', endDate: '2026-01-31' }, now),
+    ).toEqual({ ok: false, reason: 'INVALID' });
+  });
 });

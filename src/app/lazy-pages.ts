@@ -12,6 +12,10 @@ export const MaterialsPage = lazy(async () => ({
   default: (await import('@/features/materials')).MaterialsPage,
 }));
 
+export const MaterialLossesPage = lazy(async () => ({
+  default: (await import('@/features/materials')).MaterialLossesPage,
+}));
+
 export const CompositeProductsPage = lazy(async () => ({
   default: (await import('@/features/composite-products')).CompositeProductsPage,
 }));

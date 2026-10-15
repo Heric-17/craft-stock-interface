@@ -9,6 +9,7 @@ import { QUERY_ROOTS } from '@/shared/api/query-roots';
 import { requireDecimalString } from '@/shared/money';
 import { Quantity } from '@/shared/quantity';
 import { cera } from '@/test/fixtures/materials';
+import { ceraQuebrou, lossResult } from '@/test/fixtures/stock-losses';
 import { server } from '@/test/msw/server';
 
 import type { MaterialUpdate } from '../model/material-form';
@@ -16,10 +17,12 @@ import type { MaterialUpdate } from '../model/material-form';
 import { materialKeys } from './material-keys';
 import {
   useCreateMaterial,
+  useDeleteStockLoss,
   useDeleteMaterial,
   useDiscontinueMaterial,
   useReactivateMaterial,
   useAdjustStock,
+  useRecordLoss,
   useRemoveMaterialImage,
   useUpdateMaterial,
   useUploadMaterialImage,
@@ -47,6 +50,8 @@ const SEEDED: Record<string, QueryKey> = {
   materials: materialKeys.list({ includeDiscontinued: false }),
   'material detail': materialKeys.detail('mat-cera'),
   'material summary': materialKeys.summary({ includeDiscontinued: false }),
+  'loss list': materialKeys.lossList({ from: 'a', to: 'b', limit: 20, offset: 0 }),
+  'loss dataset': materialKeys.lossDataset({ from: 'a', to: 'b' }),
   'composite products': [QUERY_ROOTS.compositeProducts, 'list'],
   shortages: [QUERY_ROOTS.shortages, 'list', { saleIds: ['sale-1'] }],
 };
@@ -106,7 +111,7 @@ describe('every mutation of a material invalidates the materials, the products a
       http.patch(`${API}/materials/mat-cera`, () => HttpResponse.json(cera)),
       (client) => run(client, useUpdateMaterial, { id: 'mat-cera', update: UPDATE }),
     ],
-    ...(['ENTRY', 'WRITE_OFF', 'RECOUNT'] as const).map(
+    ...(['ENTRY', 'RECOUNT'] as const).map(
       (kind) =>
         [
           `adjusting the stock (${kind})`,
@@ -118,6 +123,19 @@ describe('every mutation of a material invalidates the materials, the products a
             }),
         ] as [string, Parameters<typeof server.use>[0], (client: QueryClient) => Promise<void>],
     ),
+    [
+      'recording a loss',
+      http.post(`${API}/materials/mat-cera/losses`, () =>
+        HttpResponse.json(lossResult(), { status: 201 }),
+      ),
+      (client) =>
+        run(client, useRecordLoss, {
+          id: 'mat-cera',
+          unit: 'GRAM',
+          quantity: Quantity.parse(requireDecimalString('80'), 'GRAM'),
+          details: { reason: 'BREAKAGE', observation: null },
+        }),
+    ],
     [
       'discontinuing',
       http.post(`${API}/materials/mat-cera/discontinue`, () => HttpResponse.json(cera)),
@@ -155,6 +173,29 @@ describe('every mutation of a material invalidates the materials, the products a
     expectEverythingInvalidated(client, _name === 'deleting' ? ['material detail'] : []);
   });
 
+  it('still invalidates everything after a loss that the API refuses, since the refusal means the screen was out of date', async () => {
+    server.use(
+      http.post(`${API}/materials/mat-cera/losses`, () =>
+        HttpResponse.json(
+          { statusCode: 422, code: 'INSUFFICIENT_STOCK', error: 'E', message: 'm' },
+          { status: 422 },
+        ),
+      ),
+    );
+    const { client } = setup();
+
+    await expect(
+      run(client, useRecordLoss, {
+        id: 'mat-cera',
+        unit: 'GRAM',
+        quantity: Quantity.parse(requireDecimalString('999'), 'GRAM'),
+        details: { reason: 'LOST', observation: null },
+      }),
+    ).rejects.toThrow();
+
+    expectEverythingInvalidated(client);
+  });
+
   it('drops the queries of a deleted material instead of fetching a record that is gone', async () => {
     server.use(
       http.delete(`${API}/materials/mat-cera`, () => new HttpResponse(null, { status: 204 })),
@@ -169,7 +210,10 @@ describe('every mutation of a material invalidates the materials, the products a
 
 describe('the requests the mutations send', () => {
   describe('the stock adjustments', () => {
-    async function sentBody(kind: 'ENTRY' | 'WRITE_OFF' | 'RECOUNT', quantity: Quantity) {
+    async function sentBody(
+      kind: 'ENTRY' | 'WRITE_OFF' | 'RECOUNT',
+      quantity: Quantity,
+    ): Promise<unknown> {
       let body: unknown;
       server.use(
         http.post(`${API}/materials/mat-cera/stock-entries`, async ({ request }) => {
@@ -197,17 +241,8 @@ describe('the requests the mutations send', () => {
       });
     });
 
-    it('sends a write-off as the same field, negative: the contract has no other for a decrease', async () => {
-      expect(await sentBody('WRITE_OFF', kilo('1.5'))).toEqual({
-        source: 'MANUAL',
-        relativeIncrement: -1500,
-      });
-      expect(
-        await sentBody('WRITE_OFF', Quantity.parse(requireDecimalString('0.145'), 'GRAM')),
-      ).toEqual({
-        source: 'MANUAL',
-        relativeIncrement: -0.145,
-      });
+    it('refuses to send a write-off as an entry: the API takes no negative increment there', async () => {
+      await expect(sentBody('WRITE_OFF', kilo('1.5'))).rejects.toThrow(/buildLossRequest/);
     });
 
     it('sends a recount as the absolute quantity, and never both fields', async () => {
@@ -222,6 +257,135 @@ describe('the requests the mutations send', () => {
         source: 'MANUAL',
         absoluteQuantity: 0,
       });
+    });
+  });
+
+  describe('deleting a loss', () => {
+    function runDeletion() {
+      const { client, wrapper } = setup();
+      const { result } = renderHook(() => useDeleteStockLoss(), { wrapper });
+
+      const outcome = act(() =>
+        result.current.mutateAsync({ lossId: 'loss-cera-1', unit: 'GRAM' }),
+      );
+
+      return { client, outcome };
+    }
+
+    it('sends a DELETE with no body to the route of the loss, and reads what was deleted', async () => {
+      let method = '';
+      let body = '';
+      server.use(
+        http.delete(`${API}/materials/losses/loss-cera-1`, async ({ request }) => {
+          method = request.method;
+          body = await request.text();
+
+          return HttpResponse.json(ceraQuebrou);
+        }),
+      );
+
+      const { outcome } = runDeletion();
+      const deleted = await outcome;
+
+      expect(method).toBe('DELETE');
+      expect(body).toBe('');
+      // The quantity is read in the unit of the material, to say how much to put back.
+      expect(deleted?.quantity?.toDecimalString()).toBe('100.000');
+      expect(deleted?.quantity?.unit).toBe('GRAM');
+      expect(deleted?.value.toCentsString()).toBe('2.80');
+    });
+
+    it('invalidates only the loss history: the stock did not change, so nothing that reads one is stale', async () => {
+      server.use(
+        http.delete(`${API}/materials/losses/loss-cera-1`, () => HttpResponse.json(ceraQuebrou)),
+      );
+
+      const { client, outcome } = runDeletion();
+      await outcome;
+
+      // The list and the dataset that the month's total is read from...
+      expect(client.getQueryState(SEEDED['loss list']!)?.isInvalidated).toBe(true);
+      expect(client.getQueryState(SEEDED['loss dataset']!)?.isInvalidated).toBe(true);
+      // ...and nothing else: not the materials, the products or the shortages.
+      for (const name of [
+        'materials',
+        'material detail',
+        'material summary',
+        'composite products',
+        'shortages',
+      ]) {
+        expect(
+          client.getQueryState(SEEDED[name]!)?.isInvalidated,
+          `${name} should not be invalidated`,
+        ).toBe(false);
+      }
+    });
+
+    it('invalidates the loss history when the loss is already gone as well, so the list catches up', async () => {
+      server.use(
+        http.delete(`${API}/materials/losses/loss-cera-1`, () =>
+          HttpResponse.json(
+            { statusCode: 422, code: 'STOCK_LOSS_NOT_FOUND', error: 'E', message: 'm' },
+            { status: 422 },
+          ),
+        ),
+      );
+
+      const { client, outcome } = runDeletion();
+      await expect(outcome).rejects.toThrow();
+
+      expect(client.getQueryState(SEEDED['loss list']!)?.isInvalidated).toBe(true);
+      expect(client.getQueryState(SEEDED['loss dataset']!)?.isInvalidated).toBe(true);
+    });
+  });
+
+  describe('the losses', () => {
+    async function sentAdjustment<V>(
+      useHook: () => { mutateAsync: (v: V) => Promise<unknown> },
+      variables: V,
+    ) {
+      let body: unknown;
+      server.use(
+        http.post(`${API}/materials/mat-cera/losses`, async ({ request }) => {
+          body = await request.json();
+
+          return HttpResponse.json(lossResult({ stockQuantityAfter: 600 }), { status: 201 });
+        }),
+      );
+      const { wrapper } = setup();
+      const { result } = renderHook(useHook, { wrapper });
+
+      const answer = await act(() => result.current.mutateAsync(variables));
+
+      return { body, answer };
+    }
+
+    it('sends a loss to its own route, with the quantity taken, positive, in the base unit', async () => {
+      const { body } = await sentAdjustment(useRecordLoss, {
+        id: 'mat-cera',
+        unit: 'GRAM' as const,
+        quantity: Quantity.fromMajorUnit(requireDecimalString('1.5'), 'GRAM'),
+        details: { reason: 'EXPIRED' as const, observation: 'lote antigo' },
+      });
+
+      expect(body).toEqual({
+        quantity: 1500,
+        reason: 'EXPIRED',
+        observation: 'lote antigo',
+      });
+    });
+
+    it('answers with the balance the API reports, as a Quantity in the material’s unit', async () => {
+      const { answer } = await sentAdjustment(useRecordLoss, {
+        id: 'mat-cera',
+        unit: 'GRAM' as const,
+        quantity: Quantity.parse(requireDecimalString('80'), 'GRAM'),
+        details: { reason: 'LOST' as const, observation: null },
+      });
+
+      expect(
+        (answer as { stockQuantityAfter: Quantity }).stockQuantityAfter.toDecimalString(),
+      ).toBe('600.000');
     });
   });
 
