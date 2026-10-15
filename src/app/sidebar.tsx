@@ -1,12 +1,20 @@
-import { LogOut } from 'lucide-react';
-import { NavLink } from 'react-router';
+import { ChevronDown, LogOut } from 'lucide-react';
+import { useId, useState } from 'react';
+import { matchPath, NavLink, useLocation } from 'react-router';
 import { useLogout, useSession } from '@/features/auth';
 import { env } from '@/shared/config/env';
 import { cn } from '@/shared/lib/cn';
 import { Button } from '@/shared/ui/button';
 import { showErrorToast } from '@/shared/ui/error-toast';
 import { initialsOf } from './initials';
-import { ACCOUNT_ENTRIES, NAV_GROUPS, type NavEntry } from './navigation';
+import {
+  ACCOUNT_ENTRIES,
+  NAV_GROUPS,
+  isNavParent,
+  type NavChild,
+  type NavEntry,
+  type NavParent,
+} from './navigation';
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const session = useSession();
   const logout = useLogout();
@@ -36,11 +44,17 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               {group.label}
             </p>
             <ul className="flex flex-col gap-0.5">
-              {group.entries.map((entry) => (
-                <li key={entry.path}>
-                  <SidebarLink entry={entry} onNavigate={onNavigate} />
-                </li>
-              ))}
+              {group.entries.map((item) =>
+                isNavParent(item) ? (
+                  <li key={item.label}>
+                    <SidebarParent parent={item} onNavigate={onNavigate} />
+                  </li>
+                ) : (
+                  <li key={item.path}>
+                    <SidebarLink entry={item} onNavigate={onNavigate} />
+                  </li>
+                ),
+              )}
             </ul>
           </div>
         ))}
@@ -105,6 +119,99 @@ function SidebarLink({
     >
       <Icon aria-hidden="true" className="size-[1.125rem] shrink-0" />
       {entry.label}
+    </NavLink>
+  );
+}
+
+/**
+ * An entry that opens a list of screens. It is a button, not a link: it says
+ * where the screens are, and each of them is the link. It opens by itself when
+ * the current screen is one of its own, so you never land somewhere the menu
+ * does not show, and it closes again only when you close it.
+ */
+function SidebarParent({
+  parent,
+  onNavigate,
+}: {
+  parent: NavParent;
+  onNavigate: (() => void) | undefined;
+}) {
+  const { pathname } = useLocation();
+  const listId = useId();
+  const Icon = parent.icon;
+  const active = parent.children.some(
+    (child) => matchPath({ path: child.path, end: child.end ?? false }, pathname) !== null,
+  );
+  const [open, setOpen] = useState(active);
+  const [wasActive, setWasActive] = useState(active);
+
+  // Arriving at one of its screens opens it, however it was left.
+  if (active !== wasActive) {
+    setWasActive(active);
+
+    if (active) {
+      setOpen(true);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen((current) => !current)}
+        className={cn(
+          'flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-sm transition-colors',
+          'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+          active && !open && 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold',
+        )}
+      >
+        <Icon aria-hidden="true" className="size-[1.125rem] shrink-0" />
+        <span className="flex-1">{parent.label}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className={cn('size-4 shrink-0 transition-transform', open && 'rotate-180')}
+        />
+      </button>
+      {open ? (
+        <ul
+          id={listId}
+          className="border-sidebar-border mt-0.5 ml-[1.4375rem] flex flex-col gap-0.5 border-l pl-2"
+        >
+          {parent.children.map((child) => (
+            <li key={child.path}>
+              <SidebarChildLink child={child} onNavigate={onNavigate} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
+  );
+}
+
+function SidebarChildLink({
+  child,
+  onNavigate,
+}: {
+  child: NavChild;
+  onNavigate: (() => void) | undefined;
+}) {
+  return (
+    <NavLink
+      to={child.path}
+      end={child.end ?? false}
+      onClick={onNavigate}
+      className={({ isActive }) =>
+        cn(
+          'flex min-h-11 items-center rounded-lg px-3 text-sm transition-colors',
+          isActive
+            ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+            : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+        )
+      }
+    >
+      {child.label}
     </NavLink>
   );
 }

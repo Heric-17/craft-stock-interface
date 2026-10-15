@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { invalidateStockDependents } from '@/shared/api/invalidate-stock-dependents';
 
 import { toMaterial } from '../model/material';
-import type { ConsumptionUnit } from '@/shared/quantity';
 
 import type { MaterialUpdate } from '../model/material-form';
 import {
@@ -108,15 +107,13 @@ export function useRecordLoss() {
   return useMutation({
     mutationFn: async ({
       id,
-      unit,
       quantity,
       details,
     }: {
       id: string;
-      unit: ConsumptionUnit;
       quantity: Quantity;
       details: LossDetails;
-    }) => toStockLossResult(await postStockLoss(id, buildLossRequest(quantity, details)), unit),
+    }) => toStockLossResult(await postStockLoss(id, buildLossRequest(quantity, details))),
     onSettled: () => invalidateStockDependents(queryClient),
   });
 }
@@ -197,8 +194,7 @@ export function useDeleteStockLoss() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ lossId, unit }: { lossId: string; unit: ConsumptionUnit }) =>
-      toStockLoss(await deleteStockLoss(lossId), unit),
+    mutationFn: async (lossId: string) => toStockLoss(await deleteStockLoss(lossId)),
     onSettled: () => queryClient.invalidateQueries({ queryKey: materialKeys.losses() }),
   });
 }

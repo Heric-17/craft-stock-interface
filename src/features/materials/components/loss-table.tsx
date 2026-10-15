@@ -37,11 +37,7 @@ function lossColumns(
     {
       id: 'quantity',
       header: 'Quantidade',
-      cell: (loss) => (
-        <span className="whitespace-nowrap">
-          {loss.quantity === null ? '—' : formatQuantity(loss.quantity)}
-        </span>
-      ),
+      cell: (loss) => <span className="whitespace-nowrap">{formatQuantity(loss.quantity)}</span>,
     },
     {
       id: 'reason',
@@ -74,9 +70,7 @@ function lossColumns(
           variant="outline"
           size="sm"
           className="text-destructive hover:text-destructive"
-          // Without its unit the quantity cannot be read, and the notice that says how
-          // much to put back needs it: the action waits for the unit.
-          disabled={busy || loss.quantity === null}
+          disabled={busy}
           aria-label={`Excluir perda de ${loss.materialName}`}
           onClick={() => onDelete(loss)}
         >

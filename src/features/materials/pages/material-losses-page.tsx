@@ -104,6 +104,7 @@ export function MaterialLossesPage() {
         <>
           <LossPeriodCard range={resolution.range} />
           <LossHistory
+            materials={materials.data ?? []}
             filters={{
               from: resolution.range.from,
               to: resolution.range.to,

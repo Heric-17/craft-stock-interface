@@ -131,7 +131,6 @@ describe('every mutation of a material invalidates the materials, the products a
       (client) =>
         run(client, useRecordLoss, {
           id: 'mat-cera',
-          unit: 'GRAM',
           quantity: Quantity.parse(requireDecimalString('80'), 'GRAM'),
           details: { reason: 'BREAKAGE', observation: null },
         }),
@@ -187,7 +186,6 @@ describe('every mutation of a material invalidates the materials, the products a
     await expect(
       run(client, useRecordLoss, {
         id: 'mat-cera',
-        unit: 'GRAM',
         quantity: Quantity.parse(requireDecimalString('999'), 'GRAM'),
         details: { reason: 'LOST', observation: null },
       }),
@@ -265,9 +263,7 @@ describe('the requests the mutations send', () => {
       const { client, wrapper } = setup();
       const { result } = renderHook(() => useDeleteStockLoss(), { wrapper });
 
-      const outcome = act(() =>
-        result.current.mutateAsync({ lossId: 'loss-cera-1', unit: 'GRAM' }),
-      );
+      const outcome = act(() => result.current.mutateAsync('loss-cera-1'));
 
       return { client, outcome };
     }
@@ -289,9 +285,9 @@ describe('the requests the mutations send', () => {
 
       expect(method).toBe('DELETE');
       expect(body).toBe('');
-      // The quantity is read in the unit of the material, to say how much to put back.
-      expect(deleted?.quantity?.toDecimalString()).toBe('100.000');
-      expect(deleted?.quantity?.unit).toBe('GRAM');
+      // The quantity is read in the unit the API sent with the loss, to say how much to put back.
+      expect(deleted?.quantity.toDecimalString()).toBe('100.000');
+      expect(deleted?.quantity.unit).toBe('GRAM');
       expect(deleted?.value.toCentsString()).toBe('2.80');
     });
 
@@ -363,7 +359,6 @@ describe('the requests the mutations send', () => {
     it('sends a loss to its own route, with the quantity taken, positive, in the base unit', async () => {
       const { body } = await sentAdjustment(useRecordLoss, {
         id: 'mat-cera',
-        unit: 'GRAM' as const,
         quantity: Quantity.fromMajorUnit(requireDecimalString('1.5'), 'GRAM'),
         details: { reason: 'EXPIRED' as const, observation: 'lote antigo' },
       });
@@ -378,7 +373,6 @@ describe('the requests the mutations send', () => {
     it('answers with the balance the API reports, as a Quantity in the material’s unit', async () => {
       const { answer } = await sentAdjustment(useRecordLoss, {
         id: 'mat-cera',
-        unit: 'GRAM' as const,
         quantity: Quantity.parse(requireDecimalString('80'), 'GRAM'),
         details: { reason: 'LOST' as const, observation: null },
       });

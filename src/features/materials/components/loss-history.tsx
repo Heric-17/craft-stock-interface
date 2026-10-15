@@ -27,6 +27,8 @@ const NOTICE_DURATION_MS = 12_000;
 
 interface LossHistoryProps {
   filters: StockLossFilters;
+  /** Only for the "Corrigir contagem" shortcut of the notice: the list itself does not read it. */
+  materials: readonly Material[];
   /** Whether anything narrows the list beyond the period: what "empty" means depends on it. */
   narrowed: boolean;
   onOffsetChange: (offset: number) => void;
@@ -47,6 +49,7 @@ interface LossHistoryProps {
  */
 export function LossHistory({
   filters,
+  materials,
   narrowed,
   onOffsetChange,
   onClearFilters,
@@ -59,7 +62,7 @@ export function LossHistory({
 
   // Deleting the last loss of the last page leaves that page with nothing on it
   // while the list still has some: go back to the last page that has rows.
-  const current = history.page;
+  const current = history.data;
   useEffect(() => {
     if (
       current !== undefined &&
@@ -75,7 +78,7 @@ export function LossHistory({
     return <LoadingSkeleton variant="table" />;
   }
 
-  if (history.isError || history.page === undefined) {
+  if (history.isError || history.data === undefined) {
     return (
       <ErrorState
         error={history.error}
@@ -86,7 +89,7 @@ export function LossHistory({
     );
   }
 
-  const { page, materials } = history;
+  const page = history.data;
 
   if (page.total === 0) {
     return narrowed ? (
@@ -110,48 +113,37 @@ export function LossHistory({
   }
 
   function confirmDeletion(): void {
-    if (target === null || target.quantity === null) {
+    if (target === null) {
       return;
     }
 
-    const unit = target.quantity.unit;
+    remove.mutate(target.id, {
+      onSuccess: (deleted) => {
+        const material = materials.find((item) => item.id === deleted.materialId);
+        const putBack = `${formatQuantity(deleted.quantity)} de ${deleted.materialName}`;
 
-    remove.mutate(
-      { lossId: target.id, unit },
-      {
-        onSuccess: (deleted) => {
-          const material = materials?.find((item) => item.id === deleted.materialId);
-          const putBack =
-            deleted.quantity === null
-              ? deleted.materialName
-              : `${formatQuantity(deleted.quantity)} de ${deleted.materialName}`;
-
-          toast.success(
-            `Perda excluída. O estoque não foi alterado: adicione de volta ${putBack}.`,
-            {
-              duration: NOTICE_DURATION_MS,
-              ...(material === undefined
-                ? {}
-                : { action: { label: 'Corrigir contagem', onClick: () => setRecount(material) } }),
-            },
-          );
-          setTarget(null);
-        },
-        onError: (error) => {
-          setTarget(null);
-
-          // Already gone — another tab, or a double click — is not a failure of
-          // anything: the list has been read again and no longer has the row.
-          if (isApiError(error) && error.code === 'STOCK_LOSS_NOT_FOUND') {
-            toast.info(messageForError(error));
-
-            return;
-          }
-
-          showErrorToast(error);
-        },
+        toast.success(`Perda excluída. O estoque não foi alterado: adicione de volta ${putBack}.`, {
+          duration: NOTICE_DURATION_MS,
+          ...(material === undefined
+            ? {}
+            : { action: { label: 'Corrigir contagem', onClick: () => setRecount(material) } }),
+        });
+        setTarget(null);
       },
-    );
+      onError: (error) => {
+        setTarget(null);
+
+        // Already gone — another tab, or a double click — is not a failure of
+        // anything: the list has been read again and no longer has the row.
+        if (isApiError(error) && error.code === 'STOCK_LOSS_NOT_FOUND') {
+          toast.info(messageForError(error));
+
+          return;
+        }
+
+        showErrorToast(error);
+      },
+    });
   }
 
   return (
@@ -179,10 +171,8 @@ export function LossHistory({
           target === null ? null : (
             <div className="flex flex-col gap-2">
               <p className="text-foreground font-medium">
-                {target.quantity === null
-                  ? target.materialName
-                  : `${formatQuantity(target.quantity)} de ${target.materialName}`}
-                , {formatMoney(target.value)}, lançado em {formatDateTime(target.createdAt)}.
+                {formatQuantity(target.quantity)} de {target.materialName},{' '}
+                {formatMoney(target.value)}, lançado em {formatDateTime(target.createdAt)}.
               </p>
               <p className="text-foreground">
                 <strong>O estoque não será alterado.</strong> Excluir só tira a perda da lista e do

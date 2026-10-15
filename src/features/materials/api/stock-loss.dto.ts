@@ -1,4 +1,5 @@
 import type { DecimalString } from '@/shared/money';
+import type { ConsumptionUnit } from '@/shared/quantity';
 
 import type { StockLossReason } from '../model/loss-reason';
 
@@ -8,8 +9,9 @@ import type { StockLossReason } from '../model/loss-reason';
  * `DecimalString` and a quantity is a `number`: nothing outside `api/` and
  * `model/` sees either.
  *
- * A loss never carries the unit of its material. The quantity is read in the
- * unit the screen knows the material by.
+ * Every loss answer carries the unit of its material, read from the material
+ * when the answer is written (the cost is frozen; the unit is not). The
+ * quantity is read in that unit, with no second call to find it out.
  *
  * There is no way to undo a loss, and so no reversal in any of these: whoever
  * recorded one by mistake corrects the stock with a recount.
@@ -27,6 +29,8 @@ export interface StockLossResultDto {
   id: string;
   materialId: string;
   materialName: string;
+  consumptionUnit: ConsumptionUnit;
+  consumptionUnitSymbol: string;
   quantity: number;
   reason: string;
   observation: string | null;
@@ -42,6 +46,8 @@ export interface StockLossDto {
   id: string;
   materialId: string;
   materialName: string;
+  consumptionUnit: ConsumptionUnit;
+  consumptionUnitSymbol: string;
   quantity: number;
   /** Kept a string on purpose: a reason this build has never heard of must not break the list. */
   reason: string;

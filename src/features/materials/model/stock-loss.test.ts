@@ -5,6 +5,7 @@ import {
   ceraQuebrou,
   emptyDataset,
   lossDto,
+  lossResult,
   monthDataset,
   monthOfLosses,
 } from '@/test/fixtures/stock-losses';
@@ -22,11 +23,21 @@ import {
 const dec = requireDecimalString;
 
 describe('a loss', () => {
-  it('reads what was lost as a positive quantity in the unit of its material', () => {
-    const loss = toStockLoss(ceraQuebrou, 'GRAM');
+  it('reads what was lost as a positive quantity in the unit the API sent with it', () => {
+    const loss = toStockLoss(ceraQuebrou);
 
-    expect(loss.quantity?.toDecimalString()).toBe('100.000');
-    expect(loss.quantity?.unit).toBe('GRAM');
+    expect(loss.quantity.toDecimalString()).toBe('100.000');
+    expect(loss.quantity.unit).toBe('GRAM');
+  });
+
+  it('takes the unit from the loss itself, whichever it is', () => {
+    const wicks = toStockLoss(lossDto({ consumptionUnit: 'UNIT', consumptionUnitSymbol: 'un' }));
+    const ribbon = toStockLoss(
+      lossDto({ consumptionUnit: 'CENTIMETER', consumptionUnitSymbol: 'cm' }),
+    );
+
+    expect(wicks.quantity.unit).toBe('UNIT');
+    expect(ribbon.quantity.unit).toBe('CENTIMETER');
   });
 
   it('keeps the value the API derived, to the cent, and never computes one', () => {
@@ -38,73 +49,55 @@ describe('a loss', () => {
         costBasisAmount: dec('40.00'),
         costBasisQuantity: 1,
       }),
-      'GRAM',
     );
 
     expect(loss.value.toCentsString()).toBe('37.00');
   });
 
   it('reads a fractional quantity exactly, however the double spells it', () => {
-    expect(toStockLoss(lossDto({ quantity: 0.145 }), 'GRAM').quantity?.toDecimalString()).toBe(
-      '0.145',
-    );
-  });
-
-  it('has no quantity when the unit of the material is not known, instead of guessing one', () => {
-    expect(toStockLoss(ceraQuebrou, undefined).quantity).toBeNull();
+    expect(toStockLoss(lossDto({ quantity: 0.145 })).quantity.toDecimalString()).toBe('0.145');
   });
 
   it('shows a reason this build has never heard of as "other", without breaking', () => {
-    expect(toStockLoss(lossDto({ reason: 'THEFT' }), 'GRAM').reason).toBe('OTHER');
-    expect(toStockLoss(lossDto({ reason: 'EXPIRED' }), 'GRAM').reason).toBe('EXPIRED');
+    expect(toStockLoss(lossDto({ reason: 'THEFT' })).reason).toBe('OTHER');
+    expect(toStockLoss(lossDto({ reason: 'EXPIRED' })).reason).toBe('EXPIRED');
   });
 
   it('refuses a value that is not a decimal string', () => {
-    expect(() =>
-      toStockLoss(lossDto({ value: 2.8 as unknown as ReturnType<typeof dec> }), 'GRAM'),
-    ).toThrow(/decimal string/);
+    expect(() => toStockLoss(lossDto({ value: 2.8 as unknown as ReturnType<typeof dec> }))).toThrow(
+      /decimal string/,
+    );
   });
 });
 
 describe('a page of losses', () => {
   it('keeps `total`, which is the size of the filtered set, beside the rows it has', () => {
-    const page = toStockLossPage(
-      { items: monthOfLosses.slice(0, 2), total: 23, limit: 20, offset: 0 },
-      () => 'GRAM',
-    );
+    const page = toStockLossPage({
+      items: monthOfLosses.slice(0, 2),
+      total: 23,
+      limit: 20,
+      offset: 0,
+    });
 
     expect(page.items).toHaveLength(2);
     expect(page.total).toBe(23);
   });
 
-  it('reads each row in the unit of the material it names', () => {
-    const page = toStockLossPage(
-      { items: monthOfLosses.slice(0, 3), total: 3, limit: 20, offset: 0 },
-      (materialId) => (materialId === 'mat-essencia' ? 'MILLILITER' : 'GRAM'),
-    );
+  it('reads each row in the unit that row came with', () => {
+    const page = toStockLossPage({
+      items: monthOfLosses.slice(0, 3),
+      total: 3,
+      limit: 20,
+      offset: 0,
+    });
 
-    expect(page.items.map((loss) => loss.quantity?.unit)).toEqual(['GRAM', 'MILLILITER', 'GRAM']);
+    expect(page.items.map((loss) => loss.quantity.unit)).toEqual(['GRAM', 'MILLILITER', 'GRAM']);
   });
 });
 
 describe('the balance a loss left behind', () => {
   it('is the API’s, as a quantity of the material', () => {
-    const result = toStockLossResult(
-      {
-        id: 'loss-1',
-        materialId: 'mat-cera',
-        materialName: 'Cera de soja',
-        quantity: 80,
-        reason: 'LOST',
-        observation: null,
-        value: dec('2.24'),
-        costBasisAmount: dec('28.00'),
-        costBasisQuantity: 1000,
-        createdAt: '2026-10-14T12:00:00.000Z',
-        stockQuantityAfter: 600,
-      },
-      'GRAM',
-    );
+    const result = toStockLossResult(lossResult({ stockQuantityAfter: 600 }));
 
     expect(result.stockQuantityAfter.toDecimalString()).toBe('600.000');
     expect(result.value.toCentsString()).toBe('2.24');
@@ -123,7 +116,7 @@ describe('the period totals', () => {
 
   const sumOf = (items: typeof monthOfLosses) =>
     Money.sum(
-      toStockLossPage({ items, total: items.length, limit: 20, offset: 0 }, () => 'GRAM').items.map(
+      toStockLossPage({ items, total: items.length, limit: 20, offset: 0 }).items.map(
         (loss) => loss.value,
       ),
     ).toCentsString();

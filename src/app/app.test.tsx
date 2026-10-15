@@ -50,12 +50,31 @@ function breadcrumb() {
  */
 const SCREENS: readonly {
   link: string;
+  /** What the breadcrumb calls it, when that is not the menu's word. */
+  crumb?: string;
   heading: string;
   path: string;
   built?: boolean;
+  /** The menu entry that holds this one, which has to be open to reach it. */
+  under?: string;
 }[] = [
   { link: 'Importar nota', heading: 'Importar nota fiscal', path: '/importar-nota' },
-  { link: 'Insumos', heading: 'Insumos', path: '/insumos', built: true },
+  {
+    link: 'Estoque',
+    crumb: 'Insumos',
+    heading: 'Insumos',
+    path: '/insumos',
+    built: true,
+    under: 'Insumos',
+  },
+  {
+    link: 'Perdas',
+    crumb: 'Perdas',
+    heading: 'Perdas de estoque',
+    path: '/insumos/perdas',
+    built: true,
+    under: 'Insumos',
+  },
   {
     link: 'Fichas técnicas',
     heading: 'Fichas técnicas',
@@ -63,7 +82,12 @@ const SCREENS: readonly {
     built: true,
   },
   { link: 'Vendas', heading: 'Vendas', path: '/vendas' },
-  { link: 'Insumos faltantes', heading: 'Insumos faltantes', path: '/insumos-faltantes' },
+  {
+    link: 'Insumos faltantes',
+    heading: 'Insumos faltantes',
+    path: '/insumos-faltantes',
+    under: 'Insumos',
+  },
   { link: 'Gastos da empresa', heading: 'Gastos da empresa', path: '/gastos' },
   { link: 'Minhas atividades', heading: 'Minhas atividades', path: '/atividades' },
   { link: 'Configurações', heading: 'Configurações', path: '/configuracoes' },
@@ -95,20 +119,27 @@ describe('application shell', () => {
     renderApp('/insumos');
     await screen.findByRole('heading', { name: 'Insumos', level: 1 });
 
-    const groups = within(menu())
-      .getAllByRole('listitem')
-      .map((item) => item.textContent);
-
-    expect(groups).toEqual([
+    // "Insumos" is one entry that opens three screens; it is open here because
+    // this is one of them.
+    expect(within(menu()).getByRole('button', { name: 'Insumos' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(
+      within(menu())
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual([
       'Importar nota',
-      'Insumos',
+      'Estoque',
+      'Perdas',
+      'Insumos faltantes',
       'Fichas técnicas',
       'Vendas',
-      'Insumos faltantes',
       'Gastos da empresa',
     ]);
-    for (const label of ['Operação', 'Estoque', 'Comercial', 'Financeiro']) {
-      expect(within(menu()).getByText(label)).toBeInTheDocument();
+    for (const label of ['Operação', 'Produção', 'Comercial', 'Financeiro']) {
+      expect(within(menu()).getAllByText(label).length).toBeGreaterThan(0);
     }
     // Below the groups, outside the nav list: activity and settings.
     expect(screen.getByRole('link', { name: 'Minhas atividades' })).toBeInTheDocument();
@@ -144,7 +175,18 @@ describe('application shell', () => {
     await screen.findByRole('heading', { name: 'Insumos', level: 1 });
 
     for (const target of SCREENS) {
-      await user.click(screen.getByRole('link', { name: target.link }));
+      if (target.under !== undefined) {
+        const parent = within(menu()).getByRole('button', { name: target.under });
+
+        if (parent.getAttribute('aria-expanded') !== 'true') {
+          await user.click(parent);
+        }
+      }
+
+      // The screens under "Insumos" share words with the buttons of their own pages.
+      const scope = target.under === undefined ? screen : within(menu());
+
+      await user.click(scope.getByRole('link', { name: target.link }));
 
       expect(await screen.findByRole('heading', { name: target.heading, level: 1 })).toBeVisible();
       expect(router.state.location.pathname).toBe(target.path);
@@ -153,12 +195,74 @@ describe('application shell', () => {
         expect(screen.getByText('Esta tela está em construção')).toBeInTheDocument();
       }
       // The menu marks where you are, and the breadcrumb says it too.
-      expect(screen.getByRole('link', { name: target.link })).toHaveAttribute(
+      expect(scope.getByRole('link', { name: target.link })).toHaveAttribute(
         'aria-current',
         'page',
       );
-      expect(within(breadcrumb()).getByText(target.link)).toHaveAttribute('aria-current', 'page');
+      expect(within(breadcrumb()).getByText(target.crumb ?? target.link)).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
     }
+  });
+
+  it('keeps the materials screens closed until you are in one of them, and opens them by hand', async () => {
+    const user = userEvent.setup();
+    renderApp('/vendas');
+    await screen.findByRole('heading', { name: 'Vendas', level: 1 });
+
+    const parent = within(menu()).getByRole('button', { name: 'Insumos' });
+    expect(parent).toHaveAttribute('aria-expanded', 'false');
+    expect(within(menu()).queryByRole('link', { name: 'Perdas' })).not.toBeInTheDocument();
+
+    await user.click(parent);
+
+    expect(parent).toHaveAttribute('aria-expanded', 'true');
+    expect(within(menu()).getByRole('link', { name: 'Perdas' })).toBeInTheDocument();
+    expect(within(menu()).getByRole('link', { name: 'Insumos faltantes' })).toBeInTheDocument();
+
+    await user.click(parent);
+
+    expect(within(menu()).queryByRole('link', { name: 'Perdas' })).not.toBeInTheDocument();
+  });
+
+  it('opens the materials screens by itself when you arrive at one of them from elsewhere', async () => {
+    const user = userEvent.setup();
+    renderApp('/insumos');
+    await screen.findByRole('heading', { name: 'Insumos', level: 1 });
+
+    // Closed by hand while on one of its screens, then left, then come back to.
+    await user.click(within(menu()).getByRole('button', { name: 'Insumos' }));
+    await user.click(within(menu()).getByRole('link', { name: 'Vendas' }));
+    await screen.findByRole('heading', { name: 'Vendas', level: 1 });
+    expect(within(menu()).getByRole('button', { name: 'Insumos' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+
+    await user.click(within(menu()).getByRole('button', { name: 'Insumos' }));
+    await user.click(within(menu()).getByRole('link', { name: 'Insumos faltantes' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Insumos faltantes', level: 1 }),
+    ).toBeVisible();
+    expect(within(menu()).getByRole('button', { name: 'Insumos' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+  });
+
+  it('marks only the screen you are on among the materials', async () => {
+    renderApp('/insumos/perdas');
+    await screen.findByRole('heading', { name: 'Perdas de estoque', level: 1 });
+
+    expect(within(menu()).getByRole('link', { name: 'Perdas' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(menu()).getByRole('link', { name: 'Estoque' })).not.toHaveAttribute(
+      'aria-current',
+    );
   });
 
   it('shows the breadcrumb as CraftStock, then the current screen', async () => {
@@ -193,7 +297,7 @@ describe('application shell', () => {
     );
   });
 
-  it('shows the loss history under the materials in the breadcrumb, with the menu still marking the materials', async () => {
+  it('shows the loss history under the materials in the breadcrumb, with the menu marking the loss history', async () => {
     renderApp('/insumos/perdas');
     await screen.findByRole('heading', { name: 'Perdas de estoque', level: 1 });
 
@@ -206,7 +310,7 @@ describe('application shell', () => {
       'href',
       '/insumos',
     );
-    expect(within(menu()).getByRole('link', { name: 'Insumos' })).toHaveAttribute(
+    expect(within(menu()).getByRole('link', { name: 'Perdas' })).toHaveAttribute(
       'aria-current',
       'page',
     );
@@ -216,7 +320,8 @@ describe('application shell', () => {
     const user = userEvent.setup();
     const router = renderApp('/insumos');
 
-    await user.click(await screen.findByRole('link', { name: 'Perdas' }));
+    await screen.findByRole('heading', { name: 'Insumos', level: 1 });
+    await user.click(within(screen.getByRole('main')).getByRole('link', { name: 'Perdas' }));
 
     expect(
       await screen.findByRole('heading', { name: 'Perdas de estoque', level: 1 }),
@@ -377,7 +482,8 @@ describe('a screen that fails', () => {
     expect(document.body.textContent).not.toContain('Internal server error');
 
     // The failure is the screen's, not the application's: the way out is intact.
-    await user.click(screen.getByRole('link', { name: 'Insumos' }));
+    await user.click(within(menu()).getByRole('button', { name: 'Insumos' }));
+    await user.click(within(menu()).getByRole('link', { name: 'Estoque' }));
     expect(await screen.findByRole('heading', { name: 'Insumos' })).toBeInTheDocument();
     expect(screen.queryByText('err-route-500')).not.toBeInTheDocument();
   });

@@ -1,5 +1,5 @@
 import { Money } from '@/shared/money';
-import { Quantity, type ConsumptionUnit } from '@/shared/quantity';
+import { Quantity } from '@/shared/quantity';
 
 import type {
   LossTotalsDto,
@@ -22,8 +22,8 @@ export interface StockLoss {
   id: string;
   materialId: string;
   materialName: string;
-  /** What was lost, positive. `null` when the material's unit is not known. */
-  quantity: Quantity | null;
+  /** What was lost, positive, in the unit the API reports for the material. */
+  quantity: Quantity;
   reason: StockLossReason;
   observation: string | null;
   value: Money;
@@ -44,12 +44,12 @@ function toReason(value: string): StockLossReason {
   return isStockLossReason(value) ? value : 'OTHER';
 }
 
-export function toStockLoss(dto: StockLossDto, unit: ConsumptionUnit | undefined): StockLoss {
+export function toStockLoss(dto: StockLossDto): StockLoss {
   return {
     id: dto.id,
     materialId: dto.materialId,
     materialName: dto.materialName,
-    quantity: unit === undefined ? null : Quantity.fromApi(dto.quantity, unit),
+    quantity: Quantity.fromApi(dto.quantity, dto.consumptionUnit),
     reason: toReason(dto.reason),
     observation: dto.observation,
     value: Money.parse(dto.value),
@@ -57,12 +57,9 @@ export function toStockLoss(dto: StockLossDto, unit: ConsumptionUnit | undefined
   };
 }
 
-export function toStockLossPage(
-  dto: StockLossPageDto,
-  unitOf: (materialId: string) => ConsumptionUnit | undefined,
-): StockLossPage {
+export function toStockLossPage(dto: StockLossPageDto): StockLossPage {
   return {
-    items: dto.items.map((item) => toStockLoss(item, unitOf(item.materialId))),
+    items: dto.items.map(toStockLoss),
     total: dto.total,
     limit: dto.limit,
     offset: dto.offset,
@@ -80,11 +77,11 @@ export interface StockLossResult {
   stockQuantityAfter: Quantity;
 }
 
-export function toStockLossResult(dto: StockLossResultDto, unit: ConsumptionUnit): StockLossResult {
+export function toStockLossResult(dto: StockLossResultDto): StockLossResult {
   return {
     id: dto.id,
     value: Money.parse(dto.value),
-    stockQuantityAfter: Quantity.fromApi(dto.stockQuantityAfter, unit),
+    stockQuantityAfter: Quantity.fromApi(dto.stockQuantityAfter, dto.consumptionUnit),
   };
 }
 

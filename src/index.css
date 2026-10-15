@@ -144,3 +144,43 @@
     outline-offset: 2px;
   }
 }
+
+/*
+ * The close button of a toast is 20px in the library's own style, under the 44px
+ * a thumb needs. The button itself grows to 44x44 and keeps the circle the same
+ * size and in the same place: the background is clipped to the 20px inside the
+ * padding, and the ring is drawn by the pseudo-element from the border colour
+ * the toast's type already sets. Unlayered on purpose, and one selector deeper
+ * than the library's, so it wins over the stylesheet the library injects.
+ */
+[data-sonner-toaster] [data-sonner-toast][data-styled='true'] [data-close-button] {
+  box-sizing: border-box;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0.75rem;
+  border-width: 0;
+  background-clip: content-box;
+  /* 0.75rem of padding plus the library's own 7px offset of the circle. */
+  transform: translate(-1.1875rem, -1.1875rem);
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-styled='true'] [data-close-button]::before {
+  content: '';
+  position: absolute;
+  inset: 0.75rem;
+  border: 1px solid;
+  border-color: inherit;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/*
+ * A modal (dialog or panel) sets `pointer-events: none` on the body, and the
+ * toaster, which sits outside the modal, inherits it: the toast is drawn over
+ * the screen but a tap goes through it to whatever is underneath. A toast is
+ * always meant to be reachable, so the toaster asks for events again.
+ */
+[data-sonner-toaster] {
+  pointer-events: auto;
+}

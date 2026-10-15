@@ -171,7 +171,6 @@ function AdjustmentBody({
 
         const recorded = await recordLoss.mutateAsync({
           id: chosen.id,
-          unit: chosen.consumptionUnit,
           quantity: result.adjustment.quantity,
           details: details.details,
         });

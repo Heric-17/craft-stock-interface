@@ -24,6 +24,7 @@ export function SheetContent({
   hideClose = false,
   className,
   children,
+  onInteractOutside,
   ...props
 }: SheetContentProps) {
   return (
@@ -41,6 +42,14 @@ export function SheetContent({
           SIDE_CLASSES[side],
           className,
         )}
+        // A toast lives outside the panel, but it is part of the screen the panel is
+        // open over: tapping one — to copy a support code, say — must not close it.
+        onInteractOutside={(event) => {
+          if (event.target instanceof Element && event.target.closest('[data-sonner-toaster]')) {
+            event.preventDefault();
+          }
+          onInteractOutside?.(event);
+        }}
         {...props}
       >
         <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>

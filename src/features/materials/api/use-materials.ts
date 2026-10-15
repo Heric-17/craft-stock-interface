@@ -1,5 +1,4 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
 
 import { toInventorySummary, toMaterial, toPriceHistory } from '../model/material';
 import { toStockLossDataset, toStockLossPage } from '../model/stock-loss';
@@ -72,41 +71,16 @@ export function useInventorySummary(filters: InventorySummaryFilters) {
  * One page of the loss history, as the API filters it: period, material and
  * reason are its parameters, and `total` is the size of the filtered set.
  *
- * A loss does not say which unit its material is measured in, so the quantity
- * is read with the unit of the material it names, from the list of every
- * material (discontinued ones too: a loss outlives the discontinuation). The
- * answer comes only when both are in, so a row never shows a quantity without
- * its unit. The previous page stays on screen while the next loads.
+ * Each loss comes with the unit of its material, so the quantity is read as it
+ * arrives and the list depends on nothing but its own request. The previous
+ * page stays on screen while the next loads.
  */
 export function useStockLosses(filters: StockLossFilters) {
-  const losses = useQuery({
+  return useQuery({
     queryKey: materialKeys.lossList(filters),
-    queryFn: ({ signal }) => fetchStockLosses(filters, signal),
+    queryFn: async ({ signal }) => toStockLossPage(await fetchStockLosses(filters, signal)),
     placeholderData: keepPreviousData,
   });
-  const materials = useMaterials({ includeDiscontinued: true });
-
-  const page = useMemo(() => {
-    if (losses.data === undefined || materials.data === undefined) {
-      return undefined;
-    }
-
-    const units = new Map(
-      materials.data.map((material) => [material.id, material.consumptionUnit]),
-    );
-
-    return toStockLossPage(losses.data, (materialId) => units.get(materialId));
-  }, [losses.data, materials.data]);
-
-  return {
-    page,
-    materials: materials.data,
-    isPending: losses.isPending || materials.isPending,
-    isFetching: losses.isFetching || materials.isFetching,
-    isError: losses.isError || materials.isError,
-    error: losses.error ?? materials.error,
-    refetch: () => Promise.all([losses.refetch(), materials.refetch()]),
-  };
 }
 
 /**
