@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { ThemeProvider } from '@/shared/theme';
 import { refreshRefused } from '@/test/auth';
 import { server } from '@/test/msw/server';
 
@@ -36,13 +37,15 @@ describe('the login at 360px', () => {
 
   async function renderLogin() {
     const view = render(
-      <QueryClientProvider client={new QueryClient()}>
-        <SessionProvider>
-          <MemoryRouter initialEntries={['/login']}>
-            <LoginPage />
-          </MemoryRouter>
-        </SessionProvider>
-      </QueryClientProvider>,
+      <ThemeProvider>
+        <QueryClientProvider client={new QueryClient()}>
+          <SessionProvider>
+            <MemoryRouter initialEntries={['/login']}>
+              <LoginPage />
+            </MemoryRouter>
+          </SessionProvider>
+        </QueryClientProvider>
+      </ThemeProvider>,
     );
 
     await screen.findByRole('heading', { name: 'Entrar' });

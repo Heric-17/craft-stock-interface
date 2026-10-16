@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { cn } from '@/shared/lib/cn';
 import { useIsDesktop } from '@/shared/lib/use-media-query';
 
 import { Sheet, SheetContent } from './sheet';
@@ -9,6 +10,8 @@ interface ResponsiveSheetProps {
   onOpenChange: (open: boolean) => void;
   /** Read by screen readers as the dialog's name. */
   title: string;
+  /** `wide` for a panel that holds a grid of cards; a form keeps the default. */
+  width?: 'default' | 'wide';
   children: ReactNode;
 }
 
@@ -17,7 +20,13 @@ interface ResponsiveSheetProps {
  * phone, where a thumb reaches the actions. Its content scrolls inside it, so
  * the header and the actions never leave the screen.
  */
-export function ResponsiveSheet({ open, onOpenChange, title, children }: ResponsiveSheetProps) {
+export function ResponsiveSheet({
+  open,
+  onOpenChange,
+  title,
+  width = 'default',
+  children,
+}: ResponsiveSheetProps) {
   const isDesktop = useIsDesktop();
 
   return (
@@ -32,7 +41,10 @@ export function ResponsiveSheet({ open, onOpenChange, title, children }: Respons
           event.preventDefault();
           (event.currentTarget as HTMLElement).focus();
         }}
-        className="bg-card text-card-foreground border-border md:w-[28rem] max-md:h-[90dvh] border-l max-md:border-t max-md:border-l-0"
+        className={cn(
+          'bg-card text-card-foreground border-border max-md:h-[90dvh] border-l max-md:border-t max-md:border-l-0',
+          width === 'wide' ? 'md:w-[46rem]' : 'md:w-[28rem]',
+        )}
       >
         {children}
       </SheetContent>

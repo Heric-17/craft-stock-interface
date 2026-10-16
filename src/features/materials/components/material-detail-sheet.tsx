@@ -77,7 +77,7 @@ export function MaterialDetailSheet({
   );
 }
 
-type Dialog = 'discontinue' | 'delete' | { inUse: ApiError } | null;
+type Dialog = 'discontinue' | 'delete' | 'remove-photo' | { inUse: ApiError } | null;
 
 function DetailBody({
   materialId,
@@ -181,12 +181,8 @@ function DetailBody({
             <Button
               variant="ghost"
               disabled={busy}
-              onClick={() =>
-                removeImage.mutate(material.id, {
-                  onSuccess: () => toast.success('Foto removida.'),
-                  onError: showErrorToast,
-                })
-              }
+              className="text-destructive hover:bg-destructive-muted hover:text-destructive"
+              onClick={() => setDialog('remove-photo')}
             >
               Remover foto
             </Button>
@@ -234,12 +230,7 @@ function DetailBody({
               {reactivate.isPending ? 'Reativando…' : 'Reativar'}
             </Button>
           )}
-          <Button
-            variant="ghost"
-            className="text-destructive hover:text-destructive"
-            onClick={() => setDialog('delete')}
-            disabled={busy}
-          >
+          <Button variant="destructive" onClick={() => setDialog('delete')} disabled={busy}>
             <Trash2 aria-hidden="true" />
             Excluir
           </Button>
@@ -257,6 +248,28 @@ function DetailBody({
           discontinue.mutate(material.id, {
             onSuccess: () => {
               toast.success(`${material.name} foi descontinuado.`);
+              setDialog(null);
+            },
+            onError: (error) => {
+              setDialog(null);
+              showErrorToast(error);
+            },
+          })
+        }
+      />
+
+      <ConfirmDialog
+        open={dialog === 'remove-photo'}
+        onOpenChange={(open) => !open && setDialog(null)}
+        title={`Remover a foto de ${material.name}?`}
+        description="O insumo fica sem foto até você enviar outra. Não dá para desfazer: a foto removida não pode ser recuperada."
+        confirmLabel="Remover foto"
+        destructive
+        pending={removeImage.isPending}
+        onConfirm={() =>
+          removeImage.mutate(material.id, {
+            onSuccess: () => {
+              toast.success('Foto removida.');
               setDialog(null);
             },
             onError: (error) => {

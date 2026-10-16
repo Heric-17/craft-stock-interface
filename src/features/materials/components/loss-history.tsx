@@ -152,7 +152,15 @@ export function LossHistory({
         {page.total === 1 ? '1 perda' : `${formatCount(page.total)} perdas`}
       </p>
 
-      <LossTable losses={page.items} busy={remove.isPending} onDelete={setTarget} />
+      <LossTable
+        losses={page.items}
+        // The photo is read from the list the screen already has; the loss does not carry one.
+        imageFor={(materialId) =>
+          materials.find((material) => material.id === materialId)?.imageUrl ?? null
+        }
+        busy={remove.isPending}
+        onDelete={setTarget}
+      />
 
       <Pagination
         total={page.total}

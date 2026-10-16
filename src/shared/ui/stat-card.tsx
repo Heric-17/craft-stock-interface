@@ -16,7 +16,7 @@ interface StatCardProps {
 }
 export function StatCard({ label, value, caption, icon: Icon, tone = 'primary' }: StatCardProps) {
   return (
-    <div className="@container border-border bg-card min-w-0 rounded-xl border">
+    <div className="@container border-border bg-card shadow-card min-w-0 rounded-xl border">
       <div className="flex flex-col items-start gap-3 p-4 @[15rem]:flex-row @[15rem]:items-center @[15rem]:gap-4 sm:p-5">
         <span
           aria-hidden="true"

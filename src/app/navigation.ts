@@ -70,6 +70,16 @@ export const COMPOSITE_PRODUCT_ROUTES = {
 } as const;
 
 /**
+ * The screens under "Vendas", as segments of its path: registering one and
+ * opening one. Visible text like the rest of the address, so in Portuguese, and
+ * kept here with every other path.
+ */
+export const SALE_ROUTES = {
+  new: 'nova',
+  detail: ':id',
+} as const;
+
+/**
  * The screens under "Insumos", as segments of its path: the loss history. Visible
  * text like the rest of the address, so in Portuguese, and kept here with every
  * other path.

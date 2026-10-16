@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { buildPeriodRange, InvalidPeriodError, resolvePeriod, type PeriodRange } from './period';
+import {
+  buildMonthsRange,
+  buildPeriodRange,
+  businessMonthLabel,
+  InvalidPeriodError,
+  resolvePeriod,
+  type PeriodRange,
+} from './period';
 
 /** Midday in Sao Paulo, so the day cannot be moved by an hour either way. */
 function noonIn(date: string): Date {
@@ -128,6 +135,53 @@ describe('buildPeriodRange: the presets', () => {
       from: '2025-02-01T00:00:00-03:00',
       to: '2026-02-01T00:00:00-03:00',
     });
+  });
+});
+
+describe('buildMonthsRange', () => {
+  it('takes this month and the one before it, for a month-over-month comparison', () => {
+    expect(buildMonthsRange(2, noonIn('2026-10-15'))).toEqual({
+      from: '2026-09-01T00:00:00-03:00',
+      to: '2026-11-01T00:00:00-03:00',
+    });
+  });
+
+  it('crosses the turn of the year in both directions', () => {
+    expect(buildMonthsRange(2, noonIn('2026-01-10'))).toEqual({
+      from: '2025-12-01T00:00:00-03:00',
+      to: '2026-02-01T00:00:00-03:00',
+    });
+    expect(buildMonthsRange(2, noonIn('2026-12-31'))).toEqual({
+      from: '2026-11-01T00:00:00-03:00',
+      to: '2027-01-01T00:00:00-03:00',
+    });
+  });
+
+  it('uses the offset in force at the first instant of each end, summer time included', () => {
+    // Brazil kept summer time until 2019: February 2018 was -02:00, and the
+    // window that opens in it must say so.
+    expect(buildMonthsRange(2, noonIn('2018-02-10'))).toEqual({
+      from: '2018-01-01T00:00:00-02:00',
+      to: '2018-03-01T00:00:00-03:00',
+    });
+  });
+
+  it('refuses a count that is not a positive whole number', () => {
+    expect(() => buildMonthsRange(0)).toThrow(InvalidPeriodError);
+    expect(() => buildMonthsRange(1.5)).toThrow(InvalidPeriodError);
+  });
+});
+
+describe('businessMonthLabel', () => {
+  it('labels the month the way the API labels its cells', () => {
+    expect(businessMonthLabel(noonIn('2026-10-15'))).toBe('2026-10');
+    expect(businessMonthLabel(noonIn('2026-01-02'))).toBe('2026-01');
+  });
+
+  it('reads the month on the business calendar, not in UTC', () => {
+    // 21:30 on 31 January in Sao Paulo is already 1 February in UTC.
+    expect(businessMonthLabel(new Date('2026-01-31T21:30:00-03:00'))).toBe('2026-01');
+    expect(businessMonthLabel(new Date('2026-02-01T00:00:00-03:00'))).toBe('2026-02');
   });
 });
 

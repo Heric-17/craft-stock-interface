@@ -78,7 +78,7 @@ function DesktopTable<Row>({
   caption,
 }: LayoutProps<Row>) {
   return (
-    <div className="border-border bg-card relative overflow-x-auto rounded-xl border">
+    <div className="border-border bg-card shadow-card relative overflow-x-auto rounded-xl border">
       <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead>
@@ -156,7 +156,7 @@ function CardList<Row>({
         return (
           <li
             key={getRowKey(row)}
-            className="border-border bg-card relative flex min-h-11 flex-col gap-3 rounded-xl border p-4"
+            className="border-border bg-card shadow-card relative flex min-h-11 flex-col gap-3 rounded-xl border p-4"
           >
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">

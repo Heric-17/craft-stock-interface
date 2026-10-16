@@ -11,7 +11,7 @@ import { PageHeader } from '@/shared/ui/page-header';
 
 import { useCompositeProducts } from '../api/use-composite-products';
 import { CompositeProductFilters } from '../components/composite-product-filters';
-import { CompositeProductTable } from '../components/composite-product-table';
+import { CompositeProductCards } from '../components/composite-product-cards';
 
 interface CompositeProductsPageProps {
   /**
@@ -101,7 +101,7 @@ export function CompositeProductsPage({ newProductPath }: CompositeProductsPageP
               ? '1 ficha técnica'
               : `${formatCount(visible.length)} fichas técnicas`}
           </p>
-          <CompositeProductTable
+          <CompositeProductCards
             products={visible}
             // Relative to this screen: the editor of a product is `<this screen>/<id>`.
             hrefFor={(product) => encodeURIComponent(product.id)}

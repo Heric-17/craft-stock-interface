@@ -23,7 +23,9 @@ export {
 } from './parse-input';
 export { formatBasisPoints, formatMarginPercent, formatPercent } from './percent';
 export {
+  buildMonthsRange,
   buildPeriodRange,
+  businessMonthLabel,
   InvalidPeriodError,
   resolvePeriod,
   type CivilDateRange,

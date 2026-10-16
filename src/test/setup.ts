@@ -5,9 +5,10 @@ import { toast } from 'sonner';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 
 import { resetSession } from '@/shared/api/session';
+import { storeThemePreference } from '@/shared/theme/theme-storage';
 
 import { server } from './msw/server';
-import { DESKTOP_WIDTH, setViewportWidth } from './viewport';
+import { DESKTOP_WIDTH, setSystemColorScheme, setViewportWidth } from './viewport';
 
 // jsdom has no pointer capture, and a toast's action button asks for it when it is
 // pressed. Nothing on screen depends on it: the shim only keeps the call from throwing.
@@ -25,6 +26,7 @@ beforeAll(() => {
 // Every test starts on a desktop; a test that is about a phone says so.
 beforeEach(() => {
   setViewportWidth(DESKTOP_WIDTH);
+  setSystemColorScheme('light');
 });
 
 afterEach(() => {
@@ -32,6 +34,9 @@ afterEach(() => {
   // The toast store belongs to the module, not to a rendered <Toaster />: one
   // test's "foi descontinuado" would otherwise be on screen in the next.
   toast.dismiss();
+  // A theme chosen in one test is not the next one's.
+  storeThemePreference('system');
+  document.documentElement.removeAttribute('data-theme');
   // The session is module state: one test's sign-in must not be the next one's.
   resetSession();
   server.resetHandlers();

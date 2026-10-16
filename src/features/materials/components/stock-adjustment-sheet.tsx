@@ -295,11 +295,14 @@ function AdjustmentBody({
 
             {/* The balance, or the reason the button is off, goes right under the quantity: that is where the eye is when it happens. */}
             {reading?.ok === true ? (
-              <p className="text-muted-foreground text-sm" aria-live="polite">
+              <p
+                className="bg-secondary text-secondary-foreground flex flex-wrap items-baseline gap-x-2 rounded-md px-3 py-2.5 text-sm font-medium"
+                aria-live="polite"
+              >
                 {kind === 'WRITE_OFF'
                   ? 'Prévia: saldo depois da baixa'
                   : 'Prévia: o estoque ficará com'}{' '}
-                <span className="text-foreground font-semibold">
+                <span className="text-foreground text-xl font-bold">
                   {formatQuantity(previewStockAfter(reading.adjustment, chosen.stockQuantity))}
                 </span>
               </p>

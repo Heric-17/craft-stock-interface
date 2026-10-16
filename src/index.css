@@ -2,20 +2,27 @@
 @import 'tw-animate-css';
 
 /*
- * The palette of the mockups, as tokens. Nothing below this file is allowed a
- * colour literal: a component asks for `bg-primary` or `text-muted-foreground`
- * and gets whatever the installation's theme says that is.
+ * The palette, as tokens, in the two themes.
+ *
+ * Nothing outside this file is allowed a colour literal: a component asks for
+ * `bg-card` or `text-muted-foreground` and gets whatever the active theme says
+ * that is. The theme is a set of values for the same names, so switching it is
+ * one attribute on `<html>` (`data-theme`) and every colour follows with no
+ * component knowing which theme it is in.
+ *
+ * Both themes define every token. A new token goes in both, or it is wrong in
+ * one of them.
  */
 :root {
   color-scheme: light;
 
-  --background: #f7f8f6;
-  --foreground: #263a35;
+  --background: #eef1f6;
+  --foreground: #1e2a3a;
 
   --card: #ffffff;
-  --card-foreground: #30423d;
+  --card-foreground: #243245;
   --popover: #ffffff;
-  --popover-foreground: #30423d;
+  --popover-foreground: #243245;
 
   --primary: #7c3aed;
   --primary-foreground: #ffffff;
@@ -23,28 +30,36 @@
   --secondary: #ede9fe;
   --secondary-foreground: #5b21b6;
 
-  --muted: #f0f3f1;
-  --muted-foreground: #8a9691;
+  --muted: #e8ecf2;
+  --muted-foreground: #5b6779;
 
   --accent: #ede9fe;
-  --accent-foreground: #6d28d9;
+  --accent-foreground: #5b21b6;
 
+  /* `destructive` is the red of text and borders; `destructive-strong` the red of a filled button. */
   --destructive: #b91c1c;
+  --destructive-strong: #b91c1c;
   --destructive-foreground: #ffffff;
   --destructive-muted: #fee2e2;
 
-  --success: #6d28d9;
-  --success-muted: #ede9fe;
+  --success: #15803d;
+  --success-muted: #dcfce7;
 
-  --warning: #c2410c;
-  --warning-muted: #ffedd5;
+  --warning: #b45309;
+  --warning-muted: #fef3c7;
 
   --info: #1d4ed8;
   --info-muted: #dbeafe;
 
-  --border: #e3e9e5;
-  --input: #dbe5e0;
+  --border: #d4dbe6;
+  --input: #c3ccd9;
   --ring: #8b5cf6;
+
+  /* What sits behind a dialog or a panel, and the lift of a card above the page. */
+  --scrim: rgb(15 23 42 / 0.5);
+  /* Text over the scrim: white in both themes, since the scrim is dark in both. */
+  --on-scrim: #ffffff;
+  --elevation-card: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.1);
 
   --sidebar: #171329;
   --sidebar-foreground: #c4bdd8;
@@ -56,6 +71,61 @@
   --sidebar-primary-foreground: #ffffff;
 
   --radius: 0.65rem;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --background: #0d0f15;
+  --foreground: #e6e9f0;
+
+  --card: #171a23;
+  --card-foreground: #dde1ea;
+  --popover: #1d2130;
+  --popover-foreground: #dde1ea;
+
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+
+  --secondary: #2b2150;
+  --secondary-foreground: #d9ccff;
+
+  --muted: #222635;
+  --muted-foreground: #a3adbf;
+
+  --accent: #2b2150;
+  --accent-foreground: #d9ccff;
+
+  --destructive: #f87171;
+  --destructive-strong: #dc2626;
+  --destructive-foreground: #ffffff;
+  --destructive-muted: #3b1719;
+
+  --success: #4ade80;
+  --success-muted: #12301f;
+
+  --warning: #fb923c;
+  --warning-muted: #3a2410;
+
+  --info: #60a5fa;
+  --info-muted: #172a4d;
+
+  --border: #2b3144;
+  --input: #363d53;
+  --ring: #a78bfa;
+
+  --scrim: rgb(0 0 0 / 0.65);
+  --on-scrim: #ffffff;
+  --elevation-card: 0 1px 2px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
+
+  --sidebar: #0a0912;
+  --sidebar-foreground: #c4bdd8;
+  --sidebar-border: #2a2247;
+  --sidebar-accent: #231b45;
+  --sidebar-accent-foreground: #d8b4fe;
+  --sidebar-muted-foreground: #8a7fa8;
+  --sidebar-primary: #7c3aed;
+  --sidebar-primary-foreground: #ffffff;
 }
 
 @theme inline {
@@ -75,6 +145,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-strong: var(--destructive-strong);
   --color-destructive-muted: var(--destructive-muted);
   --color-success: var(--success);
   --color-success-muted: var(--success-muted);
@@ -85,6 +156,9 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-scrim: var(--scrim);
+  --color-on-scrim: var(--on-scrim);
+  --shadow-card: var(--elevation-card);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);

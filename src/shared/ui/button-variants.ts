@@ -13,11 +13,17 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-primary text-primary-foreground hover:opacity-90',
-        secondary: 'bg-secondary text-secondary-foreground hover:opacity-90',
-        outline: 'border border-border bg-card text-card-foreground hover:bg-muted',
-        ghost: 'text-muted-foreground hover:bg-muted hover:text-foreground',
-        destructive: 'bg-destructive text-destructive-foreground hover:opacity-90',
+        // The main action: filled, and the only one of its kind in a group.
+        primary: 'bg-primary text-primary-foreground font-semibold shadow-sm hover:opacity-90',
+        secondary: 'bg-secondary text-secondary-foreground font-semibold hover:opacity-90',
+        // Every other action. Tinted, never a white button with black text: it has a
+        // colour at rest and fills in when it is pointed at.
+        outline:
+          'border border-primary/40 bg-secondary text-secondary-foreground font-semibold hover:border-primary hover:bg-primary hover:text-primary-foreground',
+        ghost: 'text-accent-foreground font-medium hover:bg-accent',
+        // Deleting or removing: red, filled, white and bold.
+        destructive:
+          'bg-destructive-strong text-destructive-foreground font-bold shadow-sm hover:opacity-90',
       },
       size: {
         default: 'h-11 px-4 py-2',

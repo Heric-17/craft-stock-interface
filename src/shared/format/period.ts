@@ -65,13 +65,7 @@ export function buildPeriodRange(
   now: Date = new Date(),
 ): PeriodRange {
   if (typeof period === 'string') {
-    const today = readBusinessDateTime(now);
-    const thisMonth: CivilDate = { year: today.year, month: today.month, day: 1 };
-
-    return {
-      from: startOfDay(addMonths(thisMonth, -(MONTHS_IN_PRESET[period] - 1))),
-      to: startOfDay(addMonths(thisMonth, 1)),
-    };
+    return buildMonthsRange(MONTHS_IN_PRESET[period], now);
   }
 
   const start = parseCivilDate(period.startDate);
@@ -82,6 +76,36 @@ export function buildPeriodRange(
   }
 
   return { from: startOfDay(start), to: startOfDay(addDays(end, 1)) };
+}
+
+/**
+ * The last `months` calendar months, the current one included: `from` is the
+ * first instant of the oldest, `to` the first instant of the month after the
+ * current one. Two months is "this month and the one before it", which is what
+ * a month-over-month comparison asks the API for.
+ */
+export function buildMonthsRange(months: number, now: Date = new Date()): PeriodRange {
+  if (!Number.isInteger(months) || months < 1) {
+    throw new InvalidPeriodError(`${String(months)} is not a number of months.`);
+  }
+
+  const today = readBusinessDateTime(now);
+  const thisMonth: CivilDate = { year: today.year, month: today.month, day: 1 };
+
+  return {
+    from: startOfDay(addMonths(thisMonth, -(months - 1))),
+    to: startOfDay(addMonths(thisMonth, 1)),
+  };
+}
+
+/**
+ * The month an instant falls in, written as the API labels its monthly cells
+ * (`2026-10`), on the calendar of `America/Sao_Paulo`.
+ */
+export function businessMonthLabel(now: Date = new Date()): string {
+  const { year, month } = readBusinessDateTime(now);
+
+  return `${year}-${String(month).padStart(2, '0')}`;
 }
 
 function parseCivilDate(value: string): CivilDate {

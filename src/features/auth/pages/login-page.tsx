@@ -1,5 +1,6 @@
 import { Navigate, useSearchParams } from 'react-router';
 import { env } from '@/shared/config/env';
+import { ThemeToggle } from '@/shared/ui/theme-toggle';
 import { useSession } from '../api/use-session';
 import { LoginForm } from '../components/login-form';
 import { SessionLoading, SessionRestoreFailed } from '../components/session-screens';
@@ -17,13 +18,14 @@ export function LoginPage() {
     return <Navigate to={safeDestination(params.get('redirect'))} replace />;
   }
   return (
-    <div className="bg-background flex min-h-dvh flex-col md:flex-row">
+    <div className="bg-background relative flex min-h-dvh flex-col md:flex-row">
+      <ThemeToggle className="absolute top-2 right-2 z-10" />
       <aside className="bg-sidebar text-sidebar-foreground flex flex-col justify-center gap-2 px-6 py-8 md:w-2/5 md:px-12">
         <div className="flex items-center gap-3">
           <span className="bg-sidebar-primary text-sidebar-primary-foreground grid size-9 place-items-center rounded-lg text-sm font-bold">
             CS
           </span>
-          <span className="text-xl font-bold tracking-tight text-white">
+          <span className="text-sidebar-primary-foreground text-xl font-bold tracking-tight">
             Craft<span className="text-sidebar-accent-foreground">Stock</span>
           </span>
         </div>

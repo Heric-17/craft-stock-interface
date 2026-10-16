@@ -20,7 +20,10 @@ export function QuantityField({ unit, scale = 'base', value, ...props }: Quantit
       {...props}
       value={value}
       reading={reading?.display ?? null}
-      adornmentEnd={scale === 'major' ? majorUnitSymbol(unit) : baseUnitSymbol(unit)}
+      // With a unit switch beside the input, the switch already says which unit is typed.
+      {...(props.accessory === undefined
+        ? { adornmentEnd: scale === 'major' ? majorUnitSymbol(unit) : baseUnitSymbol(unit) }
+        : {})}
     />
   );
 }

@@ -233,6 +233,16 @@ export default tseslint.config(
     },
   },
 
+  // The one file that keeps a preference of the interface (the theme) in browser storage. It
+  // holds no token and no application state, and is guarded against storage being unavailable.
+  {
+    files: ['src/shared/theme/theme-storage.ts'],
+    rules: {
+      'no-restricted-globals': 'off',
+      'no-restricted-syntax': ['error', ...NO_FLOAT_PARSING, ...NO_AD_HOC_FORMATTING],
+    },
+  },
+
   // The HTTP client is the module the restriction is about.
   {
     files: ['src/shared/api/**', 'src/features/*/api/**', 'src/test/**'],

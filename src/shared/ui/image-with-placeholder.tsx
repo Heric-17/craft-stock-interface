@@ -18,7 +18,7 @@ export function ImageWithPlaceholder({ src, alt, className }: ImageWithPlacehold
           className,
         )}
       >
-        <ImageOff aria-hidden="true" className="size-1/2 max-h-6 max-w-6" />
+        <ImageOff aria-hidden="true" className="size-1/2 max-h-14 max-w-14" />
       </span>
     );
   }

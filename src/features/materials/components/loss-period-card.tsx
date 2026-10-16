@@ -25,7 +25,7 @@ export function LossPeriodCard({ range }: { range: PeriodRange }) {
       <div
         role="status"
         aria-busy="true"
-        className="border-border bg-card flex flex-col gap-3 rounded-xl border p-5"
+        className="border-border bg-card shadow-card flex flex-col gap-3 rounded-xl border p-5"
       >
         <span className="sr-only">Carregando as perdas do período…</span>
         <Skeleton className="h-3 w-32" />
@@ -53,7 +53,7 @@ export function LossPeriodCard({ range }: { range: PeriodRange }) {
   return (
     <section
       aria-label="Perdas no período"
-      className="border-border bg-card flex flex-col gap-4 rounded-xl border p-4 sm:p-5"
+      className="border-border bg-card shadow-card flex flex-col gap-4 rounded-xl border p-4 sm:p-5"
     >
       <div className="flex items-center gap-4">
         <span

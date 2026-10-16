@@ -12,12 +12,17 @@ type Listener = () => void;
 
 const listeners = new Set<Listener>();
 let width = 1280;
+let systemDark = false;
 
 function limit(match: RegExpExecArray | null): number | null {
   return match === null ? null : toInt(match[1]);
 }
 
 function matches(query: string): boolean {
+  if (query.includes('prefers-color-scheme')) {
+    return query.includes('dark') ? systemDark : !systemDark;
+  }
+
   const min = limit(/\(min-width:\s*(\d+)px\)/.exec(query));
   const max = limit(/\(max-width:\s*(\d+)px\)/.exec(query));
 
@@ -45,6 +50,15 @@ export function setViewportWidth(next: number): void {
 
     return list as unknown as MediaQueryList;
   };
+
+  for (const listener of [...listeners]) {
+    listener();
+  }
+}
+
+/** What the system asks the interface to be, for a test about a theme that follows it. */
+export function setSystemColorScheme(scheme: 'light' | 'dark'): void {
+  systemDark = scheme === 'dark';
 
   for (const listener of [...listeners]) {
     listener();

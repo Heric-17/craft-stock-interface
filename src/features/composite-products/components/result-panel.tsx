@@ -53,7 +53,7 @@ export function ResultPanel({ variant, source, figures, saved, capacityStale }: 
     return (
       <section
         aria-label="Resultado da ficha técnica"
-        className="border-border bg-card flex flex-col gap-4 rounded-xl border p-5"
+        className="border-border bg-card shadow-card flex flex-col gap-4 rounded-xl border p-5"
       >
         <PanelHeader source={source} />
         <ResultBody source={source} figures={figures} saved={saved} capacityStale={capacityStale} />

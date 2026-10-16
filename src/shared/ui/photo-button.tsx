@@ -51,7 +51,7 @@ export function PhotoButton({ label, onPick, disabled = false, className }: Phot
       <label
         htmlFor={id}
         className={cn(
-          'border-border bg-card text-card-foreground hover:bg-muted peer-focus-visible:ring-ring inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium peer-focus-visible:ring-2',
+          'border-primary/40 bg-secondary text-secondary-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground peer-focus-visible:ring-ring inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md border px-4 text-sm font-semibold transition-colors peer-focus-visible:ring-2',
           disabled && 'pointer-events-none opacity-60',
         )}
       >

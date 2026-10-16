@@ -8,6 +8,7 @@ import { ApiError } from '@/shared/api/api-error';
 import { refreshSucceeds } from '@/test/auth';
 import { compositeProductsHandlers } from '@/test/fixtures/composite-products';
 import { materialsHandlers } from '@/test/fixtures/materials';
+import { salesHandlers } from '@/test/fixtures/sales';
 import { lossesHandlers } from '@/test/fixtures/stock-losses';
 import { server } from '@/test/msw/server';
 import { PHONE_WIDTH, setViewportWidth } from '@/test/viewport';
@@ -81,7 +82,7 @@ const SCREENS: readonly {
     path: '/fichas-tecnicas',
     built: true,
   },
-  { link: 'Vendas', heading: 'Vendas', path: '/vendas' },
+  { link: 'Vendas', heading: 'Vendas', path: '/vendas', built: true },
   {
     link: 'Insumos faltantes',
     heading: 'Insumos faltantes',
@@ -102,6 +103,7 @@ describe('application shell', () => {
       ...materialsHandlers(),
       ...compositeProductsHandlers(),
       ...lossesHandlers(),
+      ...salesHandlers(),
     );
   });
 

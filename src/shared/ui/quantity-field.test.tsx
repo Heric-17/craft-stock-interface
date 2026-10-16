@@ -209,7 +209,9 @@ describe('the value sent is the value the echo showed', () => {
     render(<Form onSubmit={onSubmit} />);
 
     await user.type(screen.getByLabelText('Quantidade'), typed);
-    const shown = screen.getByText(/g$/, { selector: 'span.font-semibold' }).textContent;
+    const shown = screen.getByText(/g$/, {
+      selector: '[aria-live="polite"] span.font-bold',
+    }).textContent;
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
 
     expect(shown).toBe(expectedEcho);

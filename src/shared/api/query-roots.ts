@@ -12,4 +12,5 @@ export const QUERY_ROOTS = {
   materials: 'materials',
   compositeProducts: 'composite-products',
   shortages: 'shortages',
+  sales: 'sales',
 } as const;

@@ -34,7 +34,8 @@ describe('the list of materials', () => {
 
     const ceraRow = inRow('Cera de soja');
     expect(ceraRow.getByText('Cera de soja')).toBeInTheDocument();
-    expect(ceraRow.getByText(`Embalagem 1${SPACE}kg`, VERBATIM)).toBeInTheDocument();
+    expect(ceraRow.getByText('Embalagem')).toBeInTheDocument();
+    expect(ceraRow.getByText(`1${SPACE}kg`, VERBATIM)).toBeInTheDocument();
     expect(ceraRow.getByText(`680${SPACE}g`, VERBATIM)).toBeInTheDocument();
     expect(ceraRow.getByText(`mín. 300${SPACE}g`, VERBATIM)).toBeInTheDocument();
     expect(ceraRow.getByText(`R$${SPACE}28,00/kg`, VERBATIM)).toBeInTheDocument();
@@ -413,5 +414,41 @@ describe('the list on a phone', () => {
     const link = await screen.findByRole('link', { name: /Pavio encerado/ });
 
     expect(link).toHaveAttribute('href', '/insumos?insumo=mat-pavio');
+  });
+});
+
+describe('removing the photo of a material', () => {
+  it('asks first, says it cannot be undone, and removes it only once confirmed', async () => {
+    const user = userEvent.setup();
+    const removed: string[] = [];
+    server.use(
+      http.delete(`${API}/materials/mat-cera/image`, () => {
+        removed.push('image');
+
+        return HttpResponse.json({ ...cera, imageUrl: null });
+      }),
+      ...materialsHandlers({ materials: [{ ...cera, imageUrl: 'https://img.example/cera.png' }] }),
+    );
+    renderMaterialsPage('/insumos?insumo=mat-cera');
+    const dialog = await screen.findByRole('dialog');
+
+    await user.click(await within(dialog).findByRole('button', { name: 'Remover foto' }));
+
+    const confirm = await screen.findByRole('alertdialog');
+    expect(within(confirm).getByText('Remover a foto de Cera de soja?')).toBeInTheDocument();
+    expect(within(confirm).getByText(/Não dá para desfazer/)).toBeInTheDocument();
+    expect(removed).toEqual([]);
+
+    await user.click(within(confirm).getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(removed).toEqual([]);
+
+    await user.click(within(dialog).getByRole('button', { name: 'Remover foto' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Remover foto' }),
+    );
+
+    expect(await screen.findByText('Foto removida.')).toBeInTheDocument();
+    expect(removed).toEqual(['image']);
   });
 });

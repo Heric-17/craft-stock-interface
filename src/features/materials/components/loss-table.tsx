@@ -3,18 +3,22 @@ import { Trash2 } from 'lucide-react';
 import { formatDateTime, formatMoney, formatQuantity } from '@/shared/format';
 import { Button } from '@/shared/ui/button';
 import { DataTable, type DataTableColumn } from '@/shared/ui/data-table';
+import { ImageWithPlaceholder } from '@/shared/ui/image-with-placeholder';
 
 import { STOCK_LOSS_REASON_LABELS } from '../model/labels';
 import type { StockLoss } from '../model/stock-loss';
 
 interface LossTableProps {
   losses: readonly StockLoss[];
+  /** The photo of a material, by id. The loss does not carry one; `null` is the reserved space. */
+  imageFor: (materialId: string) => string | null;
   /** A deletion is being sent: no second one may start beside it. */
   busy: boolean;
   onDelete: (loss: StockLoss) => void;
 }
 
 function lossColumns(
+  imageFor: (materialId: string) => string | null,
   busy: boolean,
   onDelete: (loss: StockLoss) => void,
 ): readonly DataTableColumn<StockLoss>[] {
@@ -24,13 +28,20 @@ function lossColumns(
       header: 'Insumo',
       role: 'primary',
       cell: (loss) => (
-        <span className="flex max-w-64 min-w-0 flex-col gap-0.5">
-          <span className="text-foreground font-semibold text-balance">{loss.materialName}</span>
-          {loss.observation === null ? null : (
-            <span className="text-muted-foreground line-clamp-2 text-xs" title={loss.observation}>
-              {loss.observation}
-            </span>
-          )}
+        <span className="flex max-w-72 min-w-0 items-center gap-3">
+          <ImageWithPlaceholder
+            src={imageFor(loss.materialId)}
+            alt={loss.materialName}
+            className="size-14"
+          />
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="text-foreground font-semibold text-balance">{loss.materialName}</span>
+            {loss.observation === null ? null : (
+              <span className="text-muted-foreground line-clamp-2 text-xs" title={loss.observation}>
+                {loss.observation}
+              </span>
+            )}
+          </span>
         </span>
       ),
     },
@@ -67,9 +78,8 @@ function lossColumns(
       cell: (loss) => (
         <Button
           type="button"
-          variant="outline"
+          variant="destructive"
           size="sm"
-          className="text-destructive hover:text-destructive"
           disabled={busy}
           aria-label={`Excluir perda de ${loss.materialName}`}
           onClick={() => onDelete(loss)}
@@ -87,11 +97,11 @@ function lossColumns(
  * figure is the API's. A loss recorded by mistake can be deleted, and that
  * leaves the stock alone — which the confirmation says before it happens.
  */
-export function LossTable({ losses, busy, onDelete }: LossTableProps) {
+export function LossTable({ losses, imageFor, busy, onDelete }: LossTableProps) {
   return (
     <DataTable
       caption="Perdas de estoque"
-      columns={lossColumns(busy, onDelete)}
+      columns={lossColumns(imageFor, busy, onDelete)}
       rows={losses}
       getRowKey={(loss) => loss.id}
       // Six columns beside a sidebar: below `xl` they would hide behind a sideways scroll.

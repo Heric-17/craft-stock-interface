@@ -2,6 +2,7 @@ import { ChevronRight, Menu } from 'lucide-react';
 import type { Ref } from 'react';
 import { Link, useMatches } from 'react-router';
 import { cn } from '@/shared/lib/cn';
+import { ThemeToggle } from '@/shared/ui/theme-toggle';
 import { crumbOf } from './route-handle';
 export function AppHeader({
   onOpenMenu,
@@ -69,6 +70,7 @@ export function AppHeader({
           })}
         </ol>
       </nav>
+      <ThemeToggle className="ml-auto md:-mr-2" />
     </header>
   );
 }

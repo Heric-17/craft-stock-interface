@@ -12,8 +12,9 @@ export type ScaledQuantityFieldProps = Omit<QuantityFieldProps, 'scale' | 'acces
 /**
  * A quantity field that can be typed in the larger unit: `1,5` with `kg`
  * marked is 1500 g. The conversion exists only in the interface — what is sent
- * is always the base unit — and the echo under the field says what was
- * understood, in whichever unit is marked.
+ * is always the base unit — and the unit switch sits on the same row as the
+ * input and the echo under them says what was understood, in whichever unit is
+ * marked.
  *
  * A unit with no larger one (`un`) gets the plain field.
  */
@@ -59,27 +60,24 @@ function ScaleSwitch({
     <div
       role="group"
       aria-label={`${label}: unidade de digitação`}
-      className="flex items-center gap-2"
+      className="border-input bg-card inline-flex shrink-0 overflow-hidden rounded-md border"
     >
-      <span className="text-muted-foreground text-xs">Digitar em</span>
-      <div className="border-border bg-card inline-flex overflow-hidden rounded-md border">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={scale === option.value}
-            onClick={() => onChange(option.value)}
-            className={cn(
-              'min-w-12 px-3 text-sm font-medium transition-colors',
-              scale === option.value
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted',
-            )}
-          >
-            {option.text}
-          </button>
-        ))}
-      </div>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={scale === option.value}
+          onClick={() => onChange(option.value)}
+          className={cn(
+            'min-w-14 px-4 text-base font-bold transition-colors',
+            scale === option.value
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+          )}
+        >
+          {option.text}
+        </button>
+      ))}
     </div>
   );
 }

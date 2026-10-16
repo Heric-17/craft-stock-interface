@@ -91,8 +91,7 @@ export function ProductLifecycleActions({
         )}
         <Button
           type="button"
-          variant="ghost"
-          className="text-destructive hover:text-destructive"
+          variant="destructive"
           onClick={() => setDialog('delete')}
           disabled={busy}
         >

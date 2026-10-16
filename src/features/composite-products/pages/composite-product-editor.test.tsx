@@ -76,8 +76,31 @@ async function openNewProduct() {
   return view;
 }
 
+const MATERIAL_NAMES: Record<string, string> = {
+  'mat-cera': 'Cera de soja',
+  'mat-essencia': 'Essência baunilha',
+  'mat-pavio': 'Pavio encerado',
+};
+
+/** The card a button of the picker belongs to: the photo and the figures sit beside it, not inside. */
+function cardOf(button: HTMLElement) {
+  return within(button.closest('article') ?? button);
+}
+
+/** Opens the panel that picks a material and returns what it lists. */
+async function openPicker(user: User) {
+  await user.click(screen.getByRole('button', { name: 'Adicionar insumo' }));
+
+  return within(await screen.findByRole('list', { name: 'Insumos disponíveis' }));
+}
+
 async function addMaterial(user: User, materialId: string) {
-  await user.selectOptions(screen.getByLabelText('Adicionar insumo'), materialId);
+  const list = await openPicker(user);
+
+  await user.click(
+    list.getByRole('button', { name: new RegExp(MATERIAL_NAMES[materialId] ?? '') }),
+  );
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 }
 
 describe('the result panel of a saved product', () => {
@@ -162,25 +185,104 @@ describe('the bill of materials', () => {
     serve();
     await openNewProduct();
 
-    const picker = screen.getByLabelText('Adicionar insumo');
-    const options = () =>
-      within(picker)
-        .getAllByRole('option')
-        .map((option) => option.textContent);
+    const list = await openPicker(user);
 
-    expect(options()).toEqual([
-      'Escolha um insumo',
-      'Cera de soja (g)',
-      'Essência baunilha (ml)',
-      'Pavio encerado (un)',
-    ]);
-    expect(options()).not.toContain('Fragrância antiga (g)');
+    expect(list.getAllByRole('button')).toHaveLength(3);
+    expect(list.getByRole('button', { name: /Cera de soja/ })).toBeInTheDocument();
+    expect(list.getByRole('button', { name: /Essência baunilha/ })).toBeInTheDocument();
+    expect(list.getByRole('button', { name: /Pavio encerado/ })).toBeInTheDocument();
+    expect(list.queryByRole('button', { name: /Fragrância antiga/ })).not.toBeInTheDocument();
 
-    await addMaterial(user, 'mat-cera');
+    await user.click(list.getByRole('button', { name: /Cera de soja/ }));
 
-    expect(options()).not.toContain('Cera de soja (g)');
+    // The panel closes on a pick, and the line is there with its quantity empty.
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByRole('list', { name: 'Itens da ficha' })).toBeInTheDocument();
     expect(screen.getByLabelText('Quantidade de Cera de soja por unidade')).toHaveValue('');
+
+    const again = await openPicker(user);
+
+    expect(again.queryByRole('button', { name: /Cera de soja/ })).not.toBeInTheDocument();
+    expect(again.getAllByRole('button')).toHaveLength(2);
+  });
+
+  it('shows what tells two materials apart: photo, cost per larger unit and stock', async () => {
+    const user = userEvent.setup();
+    serve();
+    await openNewProduct();
+
+    const list = await openPicker(user);
+    const cera = cardOf(list.getByRole('button', { name: /Cera de soja/ }));
+    const essencia = cardOf(list.getByRole('button', { name: /Essência baunilha/ }));
+    const pavio = cardOf(list.getByRole('button', { name: /Pavio encerado/ }));
+
+    // No photo on the fixture: the reserved space, never a broken icon.
+    expect(cera.getByRole('img', { name: 'Cera de soja (sem foto)' })).toBeInTheDocument();
+    // R$ 0,0280 a gram is shown as R$ 28,00 a kilo, never as R$ 0,03/g.
+    expect(cera.getByText(`R$${SPACE}28,00/kg`, VERBATIM)).toBeInTheDocument();
+    expect(cera.getByText(`680${SPACE}g`, VERBATIM)).toBeInTheDocument();
+    expect(essencia.getByText(`R$${SPACE}380,00/L`, VERBATIM)).toBeInTheDocument();
+    expect(essencia.getByText(`18${SPACE}ml`, VERBATIM)).toBeInTheDocument();
+    expect(pavio.getByText(`R$${SPACE}0,21/un`, VERBATIM)).toBeInTheDocument();
+    // The low-stock seal is the API's flag, and only the one that has it shows it.
+    expect(essencia.getByText('Estoque baixo')).toBeInTheDocument();
+    expect(cera.queryByText('Estoque baixo')).not.toBeInTheDocument();
+  });
+
+  it('searches by name, ignoring case and accents, and says so when nothing matches', async () => {
+    const user = userEvent.setup();
+    serve();
+    await openNewProduct();
+    const list = await openPicker(user);
+    const search = screen.getByRole('searchbox', { name: 'Buscar insumo' });
+
+    await user.type(search, 'ESSENCIA');
+
+    expect(list.getAllByRole('button')).toHaveLength(1);
+    expect(list.getByRole('button', { name: /Essência baunilha/ })).toBeInTheDocument();
+    expect(screen.getByText('1 insumo')).toBeInTheDocument();
+
+    await user.clear(search);
+    await user.type(search, 'zzz');
+
+    expect(await screen.findByText('Nenhum insumo encontrado')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Limpar busca' }));
+
+    expect(
+      within(await screen.findByRole('list', { name: 'Insumos disponíveis' })).getAllByRole(
+        'button',
+      ),
+    ).toHaveLength(3);
+  });
+
+  it('forgets the search when the panel is opened again', async () => {
+    const user = userEvent.setup();
+    serve();
+    await openNewProduct();
+    await openPicker(user);
+
+    await user.type(screen.getByRole('searchbox', { name: 'Buscar insumo' }), 'cera');
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await openPicker(user);
+
+    expect(screen.getByRole('searchbox', { name: 'Buscar insumo' })).toHaveValue('');
+  });
+
+  it('says there is nothing to add once every active material is on the bill', async () => {
+    const user = userEvent.setup();
+    serve();
+    await openNewProduct();
+    await addMaterial(user, 'mat-cera');
+    await addMaterial(user, 'mat-essencia');
+    await addMaterial(user, 'mat-pavio');
+
+    expect(screen.getByRole('button', { name: 'Adicionar insumo' })).toBeDisabled();
+    expect(
+      screen.getByText(
+        'Todos os insumos ativos já estão na ficha, ou ainda não há insumo cadastrado.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('keeps a line whose material was discontinued, sealed and intact, out of the picker', async () => {
@@ -197,12 +299,10 @@ describe('the bill of materials', () => {
       screen.getByText(/Um insumo desta ficha foi descontinuado\. Ele continua na ficha/),
     ).toBeInTheDocument();
 
-    const options = within(screen.getByLabelText('Adicionar insumo'))
-      .getAllByRole('option')
-      .map((option) => option.textContent);
+    const list = await openPicker(userEvent.setup());
 
-    expect(options).not.toContain('Fragrância antiga (g)');
-    expect(options).toContain('Cera de soja (g)');
+    expect(list.queryByRole('button', { name: /Fragrância antiga/ })).not.toBeInTheDocument();
+    expect(list.getByRole('button', { name: /Cera de soja/ })).toBeInTheDocument();
   });
 
   it('removes a line, and the material comes back to the picker', async () => {
@@ -215,11 +315,9 @@ describe('the bill of materials', () => {
     expect(
       screen.queryByLabelText('Quantidade de Pavio encerado por unidade'),
     ).not.toBeInTheDocument();
-    expect(
-      within(screen.getByLabelText('Adicionar insumo')).getByRole('option', {
-        name: 'Pavio encerado (un)',
-      }),
-    ).toBeInTheDocument();
+    const list = await openPicker(user);
+
+    expect(list.getByRole('button', { name: /Pavio encerado/ })).toBeInTheDocument();
   });
 
   it('types the quantity in the larger unit and shows what it understood before saving', async () => {
@@ -931,5 +1029,126 @@ describe('the editor on a phone', () => {
         name: 'Resultado da ficha técnica',
       }),
     ).toBeInTheDocument();
+  });
+});
+
+describe('removing the photo of a product', () => {
+  it('asks first, says it cannot be undone, and does nothing if the answer is no', async () => {
+    const user = userEvent.setup();
+    const removed: string[] = [];
+    const state = serve([compositeProductDto({ imageUrl: 'https://img.example/vela.png' })]);
+    server.use(
+      http.delete(`${API}/composite-products/prod-baunilha/image`, () => {
+        removed.push('image');
+
+        return HttpResponse.json(keepProduct(state, compositeProductDto()));
+      }),
+    );
+    await openProduct('prod-baunilha', 'Vela de baunilha');
+
+    await user.click(screen.getByRole('button', { name: 'Remover foto' }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText('Remover a foto de Vela de baunilha?')).toBeInTheDocument();
+    expect(within(dialog).getByText(/Não dá para desfazer/)).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(removed).toEqual([]);
+
+    await user.click(screen.getByRole('button', { name: 'Remover foto' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Remover foto' }),
+    );
+
+    expect(await screen.findByText('Foto removida.')).toBeInTheDocument();
+    expect(removed).toEqual(['image']);
+  });
+});
+
+describe('leaving the editor with unsaved changes', () => {
+  it('leaves at once when nothing was typed', async () => {
+    const user = userEvent.setup();
+    serve();
+    const { router } = await openNewProduct();
+
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fichas-tecnicas'));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('asks first once something was typed, and stays if the answer is to keep editing', async () => {
+    const user = userEvent.setup();
+    serve();
+    const { router } = await openNewProduct();
+    await user.type(screen.getByLabelText('Nome do produto'), 'Vela nova');
+
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText('Sair sem salvar?')).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/as alterações desta ficha técnica será perdido/),
+    ).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Continuar editando' }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(router.state.location.pathname).toBe('/fichas-tecnicas/nova');
+    expect(screen.getByLabelText('Nome do produto')).toHaveValue('Vela nova');
+  });
+
+  it('leaves, and loses what was typed, only when told to', async () => {
+    const user = userEvent.setup();
+    serve();
+    const { router } = await openNewProduct();
+    await user.type(screen.getByLabelText('Nome do produto'), 'Vela nova');
+
+    await user.click(screen.getByRole('link', { name: /Voltar para as fichas técnicas/ }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Sair sem salvar',
+      }),
+    );
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fichas-tecnicas'));
+  });
+
+  it('asks about a photo picked and not yet sent, even with nothing typed', async () => {
+    const user = userEvent.setup();
+    serve();
+    await openNewProduct();
+
+    await user.upload(
+      screen.getByLabelText('Escolher foto'),
+      new File(['bytes'], 'vela.png', { type: 'image/png' }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(await screen.findByText('Sair sem salvar?')).toBeInTheDocument();
+  });
+
+  it('does not ask after the changes were saved', async () => {
+    const user = userEvent.setup();
+    const state = serve();
+    server.use(
+      http.patch(`${API}/composite-products/prod-baunilha`, async ({ request }) => {
+        const body = (await request.json()) as { name: string };
+
+        return HttpResponse.json(keepProduct(state, compositeProductDto({ name: body.name })));
+      }),
+    );
+    const { router } = await openProduct('prod-baunilha', 'Vela de baunilha');
+    const name = screen.getByLabelText('Nome do produto');
+    await user.clear(name);
+    await user.type(name, 'Vela renomeada');
+    await user.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+    await screen.findByText('Ficha técnica atualizada.');
+
+    await user.click(screen.getByRole('button', { name: 'Voltar' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fichas-tecnicas'));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 });

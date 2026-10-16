@@ -347,7 +347,12 @@ function MaterialFormBody({
                     <span className="text-muted-foreground min-w-0 truncate text-sm">
                       {photo.name}
                     </span>
-                    <Button type="button" variant="ghost" onClick={() => setPhoto(null)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-destructive hover:bg-destructive-muted hover:text-destructive"
+                      onClick={() => setPhoto(null)}
+                    >
                       Remover
                     </Button>
                   </>

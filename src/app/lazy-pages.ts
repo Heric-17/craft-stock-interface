@@ -28,6 +28,14 @@ export const SalesPage = lazy(async () => ({
   default: (await import('@/features/sales')).SalesPage,
 }));
 
+export const SaleDetailPage = lazy(async () => ({
+  default: (await import('@/features/sales')).SaleDetailPage,
+}));
+
+export const NewSalePage = lazy(async () => ({
+  default: (await import('@/features/sales')).NewSalePage,
+}));
+
 export const InvoiceImportPage = lazy(async () => ({
   default: (await import('@/features/invoices')).InvoiceImportPage,
 }));

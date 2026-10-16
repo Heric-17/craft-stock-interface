@@ -12,10 +12,10 @@ import { PageHeader } from '@/shared/ui/page-header';
 
 import { useMaterials } from '../api/use-materials';
 import { MaterialDetailSheet } from '../components/material-detail-sheet';
+import { MaterialCards } from '../components/material-cards';
 import { MaterialFilters } from '../components/material-filters';
 import { MaterialFormSheet } from '../components/material-form-sheet';
 import { MaterialSummaryCards } from '../components/material-summary-cards';
-import { MaterialTable } from '../components/material-table';
 import { StockAdjustmentSheet } from '../components/stock-adjustment-sheet';
 import type { StockFilter } from '../model/labels';
 import type { Material } from '../model/material';
@@ -166,7 +166,7 @@ export function MaterialsPage({ lossesPath }: MaterialsPageProps) {
           <p className="text-muted-foreground text-sm" aria-live="polite">
             {visible.length === 1 ? '1 insumo' : `${formatCount(visible.length)} insumos`}
           </p>
-          <MaterialTable
+          <MaterialCards
             materials={visible}
             hrefFor={(material) => `?${DETAIL_PARAM}=${encodeURIComponent(material.id)}`}
           />

@@ -81,7 +81,7 @@ describe('the list of composite products', () => {
 
     await screen.findByRole('link', { name: /Vela de baunilha/ });
 
-    expect(screen.getByRole('columnheader', { name: 'Dá para produzir' })).toBeInTheDocument();
+    expect(within(rowOf('Vela de baunilha')).getByText('Dá para produzir')).toBeInTheDocument();
     expect(screen.queryByText(/unidades produzidas/i)).not.toBeInTheDocument();
     for (const invented of ['Status', 'Categoria', 'Publicada', 'Rascunho', 'este mês']) {
       expect(screen.queryByText(new RegExp(invented, 'i'))).not.toBeInTheDocument();
@@ -119,7 +119,7 @@ describe('the list of composite products', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Incluir descontinuados' }));
 
     const link = await screen.findByRole('link', { name: /Vela aposentada/ });
-    expect(within(link.closest('tr')!).getByText('Descontinuado')).toBeInTheDocument();
+    expect(within(link.closest('article')!).getByText('Descontinuado')).toBeInTheDocument();
     expect(requests.at(-1)?.searchParams.get('includeDiscontinued')).toBe('true');
   });
 

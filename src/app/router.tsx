@@ -9,6 +9,8 @@ import {
   InvoiceImportPage,
   MaterialLossesPage,
   MaterialsPage,
+  NewSalePage,
+  SaleDetailPage,
   SalesPage,
   SettingsPage,
   ShortagesPage,
@@ -19,6 +21,7 @@ import {
   HOME_PATH,
   MATERIAL_ROUTES,
   NAV,
+  SALE_ROUTES,
   type NavEntry,
 } from './navigation';
 import { NotFoundPage } from './pages/not-found-page';
@@ -87,6 +90,35 @@ function materialRoutes(): RouteObject {
   };
 }
 
+/**
+ * The sales history, the screen to register one and the detail of one. The
+ * history is the index of its own path and the other two are siblings of it,
+ * so the links between them are relative and never spell an address. The detail
+ * links to the products by their address, which only this table knows.
+ */
+function saleRoutes(): RouteObject {
+  const handle: RouteHandle = { crumb: NAV.sales.label };
+
+  return {
+    path: NAV.sales.path,
+    handle,
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      { index: true, element: <SalesPage newSalePath={SALE_ROUTES.new} /> },
+      {
+        path: SALE_ROUTES.new,
+        element: <NewSalePage />,
+        handle: { crumb: 'Nova venda' } satisfies RouteHandle,
+      },
+      {
+        path: SALE_ROUTES.detail,
+        element: <SaleDetailPage productPath={NAV.compositeProducts.path} />,
+        handle: { crumb: 'Detalhe da venda' } satisfies RouteHandle,
+      },
+    ],
+  };
+}
+
 export const routes: RouteObject[] = [
   {
     path: '/login',
@@ -105,7 +137,7 @@ export const routes: RouteObject[] = [
           screen(NAV.invoices, InvoiceImportPage),
           materialRoutes(),
           compositeProductRoutes(),
-          screen(NAV.sales, SalesPage),
+          saleRoutes(),
           screen(NAV.shortages, ShortagesPage),
           screen(NAV.spending, SpendingPage),
           screen(NAV.activity, ActivityPage),
