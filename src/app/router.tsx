@@ -165,6 +165,22 @@ function saleRoutes(): RouteObject {
   };
 }
 
+/**
+ * What is missing for the open sales. A screen of its own, but it links to the
+ * sales for the day there is nothing to count, by their address, which only this
+ * table knows.
+ */
+function shortageRoute(): RouteObject {
+  const handle: RouteHandle = { crumb: NAV.shortages.label };
+
+  return {
+    path: NAV.shortages.path,
+    element: <ShortagesPage salesPath={NAV.sales.path} />,
+    handle,
+    errorElement: <RouteErrorBoundary />,
+  };
+}
+
 export const routes: RouteObject[] = [
   {
     path: '/login',
@@ -184,7 +200,7 @@ export const routes: RouteObject[] = [
           materialRoutes(),
           compositeProductRoutes(),
           saleRoutes(),
-          screen(NAV.shortages, ShortagesPage),
+          shortageRoute(),
           screen(NAV.spending, SpendingPage),
           screen(NAV.activity, ActivityPage),
           screen(NAV.settings, SettingsPage),

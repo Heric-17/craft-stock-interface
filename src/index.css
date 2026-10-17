@@ -260,3 +260,39 @@
 [data-sonner-toaster] {
   pointer-events: auto;
 }
+
+/*
+ * What comes out of the printer. A printed screen is a sheet of paper, not the
+ * application: the menu, the header and every panel stay out of it, and the only
+ * thing drawn is the block a screen put in the <body> for that purpose
+ * (`data-print-area`). Every other child of the <body> — the application's root
+ * and the portals of the panels and toasts — is hidden, so the result does not
+ * depend on how the screen that asked for it was laid out.
+ *
+ * Text is black on white whatever the theme: the dark theme's near-white text
+ * would otherwise print as nothing on a page that has no background.
+ */
+@page {
+  margin: 16mm;
+}
+
+@media print {
+  body > *:not([data-print-area]) {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  [data-print-area] {
+    display: block !important;
+    color: #000;
+    background: #fff;
+    font-size: 12pt;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}

@@ -8,7 +8,12 @@ import { toSalesDataset } from '../model/sales-metrics';
 import { NO_CATALOG_IMAGES, toSale, toSalePage, type CatalogImages } from '../model/sale';
 
 import { saleKeys, type SaleFilters, type SalesDatasetFilters } from './sale-keys';
-import { fetchSale, fetchSales, fetchSalesDataset } from './sale-requests';
+import {
+  fetchEveryProductionPendingSale,
+  fetchSale,
+  fetchSales,
+  fetchSalesDataset,
+} from './sale-requests';
 
 /**
  * The photos of the products and materials a sale can hold. Nothing waits for
@@ -45,6 +50,19 @@ export function useSales(filters: SaleFilters) {
     queryKey: saleKeys.list(filters),
     queryFn: ({ signal }) => fetchSales(filters, signal),
     placeholderData: keepPreviousData,
+    select: toSalePage,
+  });
+}
+
+/**
+ * Every sale whose production is still pending, all pages of it. This is the
+ * set the shortage list starts from: what was ordered and not yet made is what
+ * will still draw on the stock. `total` is the API's.
+ */
+export function useProductionPendingSales() {
+  return useQuery({
+    queryKey: saleKeys.productionPending(),
+    queryFn: ({ signal }) => fetchEveryProductionPendingSale(signal),
     select: toSalePage,
   });
 }

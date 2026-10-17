@@ -28,6 +28,9 @@ export const saleKeys = {
   list: (filters: SaleFilters) => [...root, 'list', filters] as const,
   details: () => [...root, 'detail'] as const,
   detail: (id: string) => [...root, 'detail', id] as const,
+  // Every sale whose production is still pending, whole. Under the sales root
+  // like the rest, so any change to a sale reads it again.
+  productionPending: () => [...root, 'production-pending'] as const,
   // Under the sales root on purpose: any change to a sale invalidates it, and
   // the cards at the top of the list go with it.
   dataset: (filters: SalesDatasetFilters) => [...root, 'dataset', filters] as const,

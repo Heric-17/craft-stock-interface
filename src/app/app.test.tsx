@@ -10,6 +10,7 @@ import { compositeProductsHandlers } from '@/test/fixtures/composite-products';
 import { invoicesHandlers } from '@/test/fixtures/invoices';
 import { materialsHandlers } from '@/test/fixtures/materials';
 import { salesHandlers } from '@/test/fixtures/sales';
+import { shortagesHandlers } from '@/test/fixtures/shortages';
 import { lossesHandlers } from '@/test/fixtures/stock-losses';
 import { server } from '@/test/msw/server';
 import { PHONE_WIDTH, setViewportWidth } from '@/test/viewport';
@@ -102,6 +103,7 @@ const SCREENS: readonly {
     link: 'Insumos faltantes',
     heading: 'Insumos faltantes',
     path: '/insumos-faltantes',
+    built: true,
     under: 'Insumos',
   },
   { link: 'Gastos da empresa', heading: 'Gastos da empresa', path: '/gastos' },
@@ -122,6 +124,7 @@ describe('application shell', () => {
       ...compositeProductsHandlers(),
       ...lossesHandlers(),
       ...salesHandlers(),
+      ...shortagesHandlers(),
       ...invoicesHandlers(),
     );
   });
