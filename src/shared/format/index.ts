@@ -8,9 +8,11 @@
  * prices from.
  */
 export { formatCount } from './count';
+export { formatSheetMoney, formatSheetPercent, toCsv } from './csv';
 export { businessDayNumber, formatDateTime, InvalidDateValueError } from './date-time';
 export { NON_BREAKING_SPACE } from './decimal';
 export { moneyInputText, quantityInputText } from './input-text';
+export { formatMonthLabel, formatMonthName, formatMonthNameShort } from './month';
 export { formatMoney, formatUnitCost } from './money';
 export {
   normalizeDecimalInput,
@@ -26,7 +28,10 @@ export {
   buildMonthsRange,
   buildPeriodRange,
   businessMonthLabel,
+  formatPeriodPreset,
   InvalidPeriodError,
+  presetMonthLabels,
+  previousMonthLabel,
   resolvePeriod,
   type CivilDateRange,
   type PeriodPreset,

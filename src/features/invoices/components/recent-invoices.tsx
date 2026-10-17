@@ -118,7 +118,7 @@ export function RecentInvoices({
                   : `${formatCount(page.total)} notas importadas.`}
             </p>
             <Button asChild variant="outline">
-              <Link to={historyPath}>Ver todas as notas</Link>
+              <Link to={historyPath}>Ver todas as compras</Link>
             </Button>
           </div>
         </>

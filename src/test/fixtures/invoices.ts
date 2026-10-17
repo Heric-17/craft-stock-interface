@@ -184,10 +184,12 @@ export function invoicesHandlers(options: InvoicesHandlerOptions = {}) {
       // `from` inclusive, `to` exclusive: the filter runs before the page, as in the API.
       const from = url.searchParams.get('from');
       const to = url.searchParams.get('to');
+      const establishmentId = url.searchParams.get('establishmentId');
       const filtered = purchases.filter(
         (purchase) =>
           (from === null || new Date(purchase.purchaseDate) >= new Date(from)) &&
-          (to === null || new Date(purchase.purchaseDate) < new Date(to)),
+          (to === null || new Date(purchase.purchaseDate) < new Date(to)) &&
+          (establishmentId === null || purchase.establishment?.id === establishmentId),
       );
 
       return HttpResponse.json({

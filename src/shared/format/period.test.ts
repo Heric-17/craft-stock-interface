@@ -4,7 +4,10 @@ import {
   buildMonthsRange,
   buildPeriodRange,
   businessMonthLabel,
+  formatPeriodPreset,
   InvalidPeriodError,
+  presetMonthLabels,
+  previousMonthLabel,
   resolvePeriod,
   type PeriodRange,
 } from './period';
@@ -415,5 +418,72 @@ describe('resolvePeriod', () => {
     expect(
       resolvePeriod({ kind: 'custom', startDate: '2026-02-01', endDate: '2026-01-31' }, now),
     ).toEqual({ ok: false, reason: 'INVALID' });
+  });
+});
+
+describe('presetMonthLabels', () => {
+  it('lists the months of the last 6 months, oldest first and the running one last', () => {
+    expect(presetMonthLabels('LAST_6_MONTHS', noonIn('2026-10-14'))).toEqual([
+      '2026-05',
+      '2026-06',
+      '2026-07',
+      '2026-08',
+      '2026-09',
+      '2026-10',
+    ]);
+  });
+
+  it('is one month for "this month" and twelve for the last 12 months', () => {
+    expect(presetMonthLabels('THIS_MONTH', noonIn('2026-10-14'))).toEqual(['2026-10']);
+    expect(presetMonthLabels('LAST_12_MONTHS', noonIn('2026-10-14'))).toHaveLength(12);
+  });
+
+  it('crosses the turn of the year', () => {
+    expect(presetMonthLabels('LAST_6_MONTHS', noonIn('2026-02-10'))).toEqual([
+      '2025-09',
+      '2025-10',
+      '2025-11',
+      '2025-12',
+      '2026-01',
+      '2026-02',
+    ]);
+  });
+
+  it('reads today on the calendar of Sao Paulo, not in UTC', () => {
+    // 22:00 on 31 January in Sao Paulo is already February in UTC.
+    expect(presetMonthLabels('THIS_MONTH', new Date('2026-01-31T22:00:00-03:00'))).toEqual([
+      '2026-01',
+    ]);
+  });
+
+  it('names the same months the range covers, so a chart and its query agree', () => {
+    const now = noonIn('2026-10-14');
+    const labels = presetMonthLabels('LAST_6_MONTHS', now);
+    const { from, to } = buildPeriodRange('LAST_6_MONTHS', now);
+
+    expect(from.slice(0, 7)).toBe(labels[0]);
+    expect(businessMonthLabel(new Date(new Date(to).getTime() - 1))).toBe(labels.at(-1));
+  });
+});
+
+describe('previousMonthLabel', () => {
+  it('is the month before', () => {
+    expect(previousMonthLabel('2026-10')).toBe('2026-09');
+  });
+
+  it('is December of the year before for January', () => {
+    expect(previousMonthLabel('2026-01')).toBe('2025-12');
+  });
+
+  it('refuses what is not a month', () => {
+    expect(() => previousMonthLabel('2026-10-01')).toThrow(InvalidPeriodError);
+  });
+});
+
+describe('formatPeriodPreset', () => {
+  it('names each preset as the period field does', () => {
+    expect(formatPeriodPreset('THIS_MONTH')).toBe('Este mês');
+    expect(formatPeriodPreset('LAST_6_MONTHS')).toBe('Últimos 6 meses');
+    expect(formatPeriodPreset('LAST_12_MONTHS')).toBe('Últimos 12 meses');
   });
 });

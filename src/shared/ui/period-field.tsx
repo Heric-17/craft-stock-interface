@@ -1,16 +1,17 @@
 import { useId } from 'react';
 
-import { resolvePeriod, type PeriodPreset, type PeriodSelection } from '@/shared/format';
+import {
+  formatPeriodPreset,
+  resolvePeriod,
+  type PeriodPreset,
+  type PeriodSelection,
+} from '@/shared/format';
 
 import { Input } from './input';
 import { Label } from './label';
 import { SelectField } from './select-field';
 
-const PRESET_LABELS: Record<PeriodPreset, string> = {
-  THIS_MONTH: 'Este mês',
-  LAST_6_MONTHS: 'Últimos 6 meses',
-  LAST_12_MONTHS: 'Últimos 12 meses',
-};
+const PRESETS: readonly PeriodPreset[] = ['THIS_MONTH', 'LAST_6_MONTHS', 'LAST_12_MONTHS'];
 
 const CUSTOM = 'CUSTOM';
 
@@ -18,6 +19,12 @@ interface PeriodFieldProps {
   value: PeriodSelection;
   onChange: (value: PeriodSelection) => void;
   label?: string;
+  /**
+   * Offers "Personalizado", two days typed in. On by default. A screen that reads
+   * whole calendar months, like the monthly chart, turns it off: a period that
+   * starts on the 10th would draw its first month as if it were complete.
+   */
+  allowCustom?: boolean;
 }
 
 /**
@@ -30,7 +37,12 @@ interface PeriodFieldProps {
  * Two days typed in are both days **to include**: picking 1 to 31 January is
  * all of January. An end before the start is said here, on the field.
  */
-export function PeriodField({ value, onChange, label = 'Período' }: PeriodFieldProps) {
+export function PeriodField({
+  value,
+  onChange,
+  label = 'Período',
+  allowCustom = true,
+}: PeriodFieldProps) {
   const id = useId();
   const resolution = resolvePeriod(value);
   const problem =
@@ -52,12 +64,12 @@ export function PeriodField({ value, onChange, label = 'Período' }: PeriodField
         }}
         className="sm:min-w-48"
       >
-        {(Object.keys(PRESET_LABELS) as PeriodPreset[]).map((preset) => (
+        {PRESETS.map((preset) => (
           <option key={preset} value={preset}>
-            {PRESET_LABELS[preset]}
+            {formatPeriodPreset(preset)}
           </option>
         ))}
-        <option value={CUSTOM}>Personalizado</option>
+        {allowCustom ? <option value={CUSTOM}>Personalizado</option> : null}
       </SelectField>
 
       {value.kind === 'custom' ? (

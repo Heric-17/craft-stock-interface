@@ -40,10 +40,6 @@ export const InvoiceImportPage = lazy(async () => ({
   default: (await import('@/features/invoices')).InvoiceImportPage,
 }));
 
-export const ImportedInvoicesPage = lazy(async () => ({
-  default: (await import('@/features/invoices')).ImportedInvoicesPage,
-}));
-
 export const InvoiceClassificationPage = lazy(async () => ({
   default: (await import('@/features/invoices')).InvoiceClassificationPage,
 }));
@@ -54,6 +50,14 @@ export const ShortagesPage = lazy(async () => ({
 
 export const SpendingPage = lazy(async () => ({
   default: (await import('@/features/spending')).SpendingPage,
+}));
+
+export const PurchasesPage = lazy(async () => ({
+  default: (await import('@/features/spending')).PurchasesPage,
+}));
+
+export const PurchaseDetailPage = lazy(async () => ({
+  default: (await import('@/features/spending')).PurchaseDetailPage,
 }));
 
 export const ActivityPage = lazy(async () => ({

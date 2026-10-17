@@ -21,6 +21,8 @@ export interface PurchaseLine {
   /** Always the full price of the line, before any discount. */
   grossValue: Money;
   allocatedDiscount: Money;
+  /** What the line cost after its discount, as the API worked it out. */
+  netValue: Money;
   isCompanyExpense: boolean;
   isStockMaterial: boolean;
   materialId: string | null;
@@ -98,6 +100,7 @@ function toPurchaseLine(dto: PurchaseItemDto): PurchaseLine {
     printedUnit: readablePrintedUnit(dto.unit),
     grossValue: Money.parse(dto.grossValue),
     allocatedDiscount: Money.parse(dto.allocatedDiscount),
+    netValue: Money.parse(dto.netValue),
     isCompanyExpense: dto.isCompanyExpense,
     isStockMaterial: dto.isStockMaterial,
     materialId: dto.materialId,

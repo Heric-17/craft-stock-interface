@@ -6,12 +6,13 @@ import {
   ActivityPage,
   CompositeProductEditorPage,
   CompositeProductsPage,
-  ImportedInvoicesPage,
   InvoiceClassificationPage,
   InvoiceImportPage,
   MaterialLossesPage,
   MaterialsPage,
   NewSalePage,
+  PurchaseDetailPage,
+  PurchasesPage,
   SaleDetailPage,
   SalesPage,
   SettingsPage,
@@ -22,10 +23,11 @@ import {
   COMPOSITE_PRODUCT_ROUTES,
   classificationPath,
   HOME_PATH,
-  IMPORTED_INVOICES_PATH,
   INVOICE_ROUTES,
   MATERIAL_ROUTES,
   NAV,
+  purchasePath,
+  PURCHASE_ROUTES,
   SALE_ROUTES,
   type NavEntry,
 } from './navigation';
@@ -90,23 +92,13 @@ function invoiceRoutes(): RouteObject {
         element: (
           <InvoiceImportPage
             classificationPath={classificationPath}
-            historyPath={IMPORTED_INVOICES_PATH}
+            historyPath={NAV.purchases.path}
           />
         ),
-      },
-      {
-        path: INVOICE_ROUTES.imported,
-        element: (
-          <ImportedInvoicesPage
-            classificationPath={classificationPath}
-            importPath={NAV.invoices.path}
-          />
-        ),
-        handle: { crumb: 'Notas importadas' } satisfies RouteHandle,
       },
       {
         path: INVOICE_ROUTES.classify,
-        element: <InvoiceClassificationPage historyPath={IMPORTED_INVOICES_PATH} />,
+        element: <InvoiceClassificationPage historyPath={NAV.purchases.path} />,
         handle: { crumb: 'Classificar nota' } satisfies RouteHandle,
       },
     ],
@@ -181,6 +173,65 @@ function shortageRoute(): RouteObject {
   };
 }
 
+/**
+ * The spending panel. It links to the purchases and to the importing of a note by
+ * their address, which only this table knows.
+ */
+function spendingRoute(): RouteObject {
+  const handle: RouteHandle = { crumb: NAV.spending.label };
+
+  return {
+    path: NAV.spending.path,
+    element: (
+      <SpendingPage
+        purchasesPath={NAV.purchases.path}
+        purchasePath={purchasePath}
+        importPath={NAV.invoices.path}
+      />
+    ),
+    handle,
+    errorElement: <RouteErrorBoundary />,
+  };
+}
+
+/**
+ * The list of purchases and the detail of one. The list is the index of its own
+ * path and the detail a sibling of it. The detail leads to the classification of
+ * the purchase, by its address, which only this table knows.
+ */
+function purchaseRoutes(): RouteObject {
+  const handle: RouteHandle = { crumb: NAV.purchases.label };
+
+  return {
+    path: NAV.purchases.path,
+    handle,
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        index: true,
+        element: (
+          <PurchasesPage
+            purchasePath={purchasePath}
+            classificationPath={classificationPath}
+            spendingPath={NAV.spending.path}
+            importPath={NAV.invoices.path}
+          />
+        ),
+      },
+      {
+        path: PURCHASE_ROUTES.detail,
+        element: (
+          <PurchaseDetailPage
+            purchasesPath={NAV.purchases.path}
+            classificationPath={classificationPath}
+          />
+        ),
+        handle: { crumb: 'Detalhe da compra' } satisfies RouteHandle,
+      },
+    ],
+  };
+}
+
 export const routes: RouteObject[] = [
   {
     path: '/login',
@@ -201,7 +252,8 @@ export const routes: RouteObject[] = [
           compositeProductRoutes(),
           saleRoutes(),
           shortageRoute(),
-          screen(NAV.spending, SpendingPage),
+          spendingRoute(),
+          purchaseRoutes(),
           screen(NAV.activity, ActivityPage),
           screen(NAV.settings, SettingsPage),
           { path: '*', element: <NotFoundPage /> },

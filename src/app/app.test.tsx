@@ -7,10 +7,11 @@ import { RequireAuth } from '@/features/auth';
 import { ApiError } from '@/shared/api/api-error';
 import { refreshSucceeds } from '@/test/auth';
 import { compositeProductsHandlers } from '@/test/fixtures/composite-products';
-import { invoicesHandlers } from '@/test/fixtures/invoices';
+import { classificationHandlers, invoicesHandlers } from '@/test/fixtures/invoices';
 import { materialsHandlers } from '@/test/fixtures/materials';
 import { salesHandlers } from '@/test/fixtures/sales';
 import { shortagesHandlers } from '@/test/fixtures/shortages';
+import { spendingHandlers } from '@/test/fixtures/spending';
 import { lossesHandlers } from '@/test/fixtures/stock-losses';
 import { server } from '@/test/msw/server';
 import { PHONE_WIDTH, setViewportWidth } from '@/test/viewport';
@@ -62,19 +63,10 @@ const SCREENS: readonly {
   under?: string;
 }[] = [
   {
-    link: 'Nova importação',
-    crumb: 'Importar nota',
+    link: 'Importar nota',
     heading: 'Importar nota fiscal',
     path: '/importar-nota',
     built: true,
-    under: 'Importar nota',
-  },
-  {
-    link: 'Notas importadas',
-    heading: 'Notas importadas',
-    path: '/importar-nota/notas',
-    built: true,
-    under: 'Importar nota',
   },
   {
     link: 'Estoque',
@@ -106,7 +98,8 @@ const SCREENS: readonly {
     built: true,
     under: 'Insumos',
   },
-  { link: 'Gastos da empresa', heading: 'Gastos da empresa', path: '/gastos' },
+  { link: 'Gastos da empresa', heading: 'Gastos da empresa', path: '/gastos', built: true },
+  { link: 'Compras', heading: 'Compras', path: '/compras', built: true },
   { link: 'Minhas atividades', heading: 'Minhas atividades', path: '/atividades' },
   { link: 'Configurações', heading: 'Configurações', path: '/configuracoes' },
 ];
@@ -125,6 +118,8 @@ describe('application shell', () => {
       ...lossesHandlers(),
       ...salesHandlers(),
       ...shortagesHandlers(),
+      // Before the invoice routes: `/purchases/spending` would otherwise be read as a purchase id.
+      ...spendingHandlers(),
       ...invoicesHandlers(),
     );
   });
@@ -159,16 +154,31 @@ describe('application shell', () => {
     );
   });
 
+  it('opens one purchase under the list of purchases, with the purchase in the address', async () => {
+    server.use(...classificationHandlers());
+    const router = renderApp('/compras/compra-1');
+
+    // The chunk of the spending screens carries the chart library, and is transformed cold.
+    expect(
+      await screen.findByRole(
+        'link',
+        { name: /Voltar para as compras/ },
+        { timeout: LAZY_SCREEN_TIMEOUT },
+      ),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe('/compras/compra-1');
+    expect(within(breadcrumb()).getByText('Compras')).toBeInTheDocument();
+    expect(within(breadcrumb()).getByText('Detalhe da compra')).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
   it('groups the menu as the mockups do', async () => {
     renderApp('/insumos');
     await screen.findByRole('heading', { name: 'Insumos', level: 1 });
 
-    // "Importar nota" is one entry that opens two screens, closed here: it is a button, and its
-    // screens are not in the menu until it is open.
-    expect(within(menu()).getByRole('button', { name: 'Importar nota' })).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    );
+    // "Importar nota" is a screen of its own: a link, with nothing under it.
     // "Insumos" is one entry that opens three screens; it is open here because
     // this is one of them.
     expect(within(menu()).getByRole('button', { name: 'Insumos' })).toHaveAttribute(
@@ -180,12 +190,14 @@ describe('application shell', () => {
         .getAllByRole('link')
         .map((link) => link.textContent),
     ).toEqual([
+      'Importar nota',
       'Estoque',
       'Perdas',
       'Insumos faltantes',
       'Fichas técnicas',
       'Vendas',
       'Gastos da empresa',
+      'Compras',
     ]);
     for (const label of ['Operação', 'Produção', 'Comercial', 'Financeiro']) {
       expect(within(menu()).getAllByText(label).length).toBeGreaterThan(0);

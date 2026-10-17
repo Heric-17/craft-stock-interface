@@ -3,7 +3,7 @@ import { render } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { Toaster } from 'sonner';
 
-import { ImportedInvoicesPage, InvoiceImportPage } from '@/features/invoices';
+import { InvoiceImportPage } from '@/features/invoices';
 
 import { ClassificationStandIn } from './classification-stand-in';
 
@@ -28,22 +28,14 @@ export function renderInvoices(route = '/importar-nota') {
             element: (
               <InvoiceImportPage
                 classificationPath={(purchaseId) => `/importar-nota/classificar/${purchaseId}`}
-                historyPath="/importar-nota/notas"
-              />
-            ),
-          },
-          {
-            path: 'notas',
-            element: (
-              <ImportedInvoicesPage
-                importPath="/importar-nota"
-                classificationPath={(purchaseId) => `/importar-nota/classificar/${purchaseId}`}
+                historyPath="/compras"
               />
             ),
           },
           { path: 'classificar/:purchaseId', element: <ClassificationStandIn /> },
         ],
       },
+      { path: '/compras', element: <p>Tela das compras</p> },
     ],
     { initialEntries: [route] },
   );

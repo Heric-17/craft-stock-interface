@@ -23,10 +23,6 @@ export const INVOICE_STATE_DESCRIPTIONS: Record<InvoiceState, string> = {
   IMPORTED: 'A nota foi lida.',
 };
 
-export function invoiceCountText(total: number, formatted: string): string {
-  return total === 1 ? '1 nota' : `${formatted} notas`;
-}
-
 export function attemptsText(count: number): string {
   return count === 1 ? '1 tentativa' : `${count} tentativas`;
 }

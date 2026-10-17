@@ -12,6 +12,7 @@ export function fetchPurchases(
     query: {
       from: filters.from,
       to: filters.to,
+      establishmentId: filters.establishmentId,
       limit: filters.limit,
       offset: filters.offset,
     },

@@ -28,6 +28,7 @@ function line(id: string, overrides: Partial<PurchaseLine> = {}): PurchaseLine {
     printedUnit: 'UN',
     grossValue: money('10.00'),
     allocatedDiscount: money('0.00'),
+    netValue: money('10.00'),
     isCompanyExpense: true,
     isStockMaterial: false,
     materialId: null,

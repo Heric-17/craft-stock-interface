@@ -1,4 +1,5 @@
 import { ChevronRight, Receipt } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { formatDateTime, formatMoney } from '@/shared/format';
@@ -8,27 +9,29 @@ import { shortAccessKey, type PurchaseSummary } from '../model/purchase';
 
 interface PurchaseRowProps {
   purchase: PurchaseSummary;
-  /** Where the note opens: its second step. */
+  /** Where the row opens. */
   href: string;
+  /**
+   * A button beside the row, outside the link: a link cannot hold another one.
+   * On a phone it sits under the row, as wide as the row, where a thumb reaches it.
+   */
+  action?: ReactNode;
 }
 
 /**
- * One imported note. It is named by the shop that issued it, with what tells two
+ * One purchase of the history. It is named by the shop that issued it, with what tells two
  * visits to the same shop apart: the day, how many lines and the end of the
  * access key. What it cost is what was paid, with the discount under it when
  * there was one — the sum of the lines at full price is not what left the till.
  *
  * The whole row is the link, so a thumb finds it anywhere on the line.
  */
-export function PurchaseRow({ purchase, href }: PurchaseRowProps) {
+export function PurchaseRow({ purchase, href, action }: PurchaseRowProps) {
   const hasDiscount = !purchase.discountTotal.isZero();
 
   return (
-    <li>
-      <Link
-        to={href}
-        className="hover:bg-muted/60 focus-visible:bg-muted/60 flex min-h-16 items-center gap-3 p-4 transition-colors sm:px-5"
-      >
+    <li className="hover:bg-muted/60 focus-within:bg-muted/60 flex flex-col transition-colors sm:flex-row sm:items-center">
+      <Link to={href} className="flex min-h-16 min-w-0 flex-1 items-center gap-3 p-4 sm:px-5">
         <span
           aria-hidden="true"
           className="bg-success-muted text-success grid size-11 shrink-0 place-items-center rounded-lg"
@@ -44,7 +47,7 @@ export function PurchaseRow({ purchase, href }: PurchaseRowProps) {
           {purchase.allocationPending || !purchase.hasInvoice ? (
             <span className="flex flex-wrap gap-1.5">
               {purchase.allocationPending ? (
-                <StatusBadge tone="warning">Desconto pendente</StatusBadge>
+                <StatusBadge tone="warning">Desconto a distribuir</StatusBadge>
               ) : null}
               {purchase.hasInvoice ? null : <StatusBadge>Digitada à mão</StatusBadge>}
             </span>
@@ -69,6 +72,7 @@ export function PurchaseRow({ purchase, href }: PurchaseRowProps) {
           className="text-muted-foreground hidden size-5 shrink-0 sm:block"
         />
       </Link>
+      {action === undefined ? null : <div className="px-4 pb-4 sm:p-0 sm:pr-5">{action}</div>}
     </li>
   );
 }

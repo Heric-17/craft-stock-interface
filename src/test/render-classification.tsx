@@ -21,13 +21,13 @@ export function renderClassification(purchaseId = 'compra-1') {
         path: '/importar-nota',
         children: [
           { index: true, element: <p>Tela de importar nota</p> },
-          { path: 'notas', element: <p>Tela das notas importadas</p> },
           {
             path: 'classificar/:purchaseId',
-            element: <InvoiceClassificationPage historyPath="/importar-nota/notas" />,
+            element: <InvoiceClassificationPage historyPath="/compras" />,
           },
         ],
       },
+      { path: '/compras', element: <p>Tela das compras</p> },
     ],
     { initialEntries: [`/importar-nota/classificar/${purchaseId}`] },
   );

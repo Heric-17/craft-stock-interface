@@ -99,13 +99,58 @@ export function buildMonthsRange(months: number, now: Date = new Date()): Period
 }
 
 /**
+ * What the period field calls each preset. Kept next to the presets so a card
+ * that says which period it covers and the field that chose it spell it alike.
+ */
+const PRESET_LABELS: Record<PeriodPreset, string> = {
+  THIS_MONTH: 'Este mês',
+  LAST_6_MONTHS: 'Últimos 6 meses',
+  LAST_12_MONTHS: 'Últimos 12 meses',
+};
+
+export function formatPeriodPreset(preset: PeriodPreset): string {
+  return PRESET_LABELS[preset];
+}
+
+/**
+ * Every month a preset covers, oldest first, written as the API labels its
+ * monthly cells (`2026-05`). A dataset that leaves out the months with nothing
+ * in them is filled in from this list, so a month without a purchase is a
+ * month at zero and not a gap in the chart.
+ */
+export function presetMonthLabels(preset: PeriodPreset, now: Date = new Date()): string[] {
+  const today = readBusinessDateTime(now);
+  const count = MONTHS_IN_PRESET[preset];
+  const thisMonth: CivilDate = { year: today.year, month: today.month, day: 1 };
+
+  return Array.from({ length: count }, (_, index) =>
+    monthLabelOf(addMonths(thisMonth, index - (count - 1))),
+  );
+}
+
+/** The month before one, in the labels of the API: `2026-01` is preceded by `2025-12`. */
+export function previousMonthLabel(label: string): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(label);
+
+  if (match === null) {
+    throw new InvalidPeriodError(`${label} is not a month written as YYYY-MM.`);
+  }
+
+  return monthLabelOf(addMonths({ year: Number(match[1]), month: Number(match[2]), day: 1 }, -1));
+}
+
+function monthLabelOf(date: CivilDate): string {
+  return `${date.year}-${String(date.month).padStart(2, '0')}`;
+}
+
+/**
  * The month an instant falls in, written as the API labels its monthly cells
  * (`2026-10`), on the calendar of `America/Sao_Paulo`.
  */
 export function businessMonthLabel(now: Date = new Date()): string {
   const { year, month } = readBusinessDateTime(now);
 
-  return `${year}-${String(month).padStart(2, '0')}`;
+  return monthLabelOf({ year, month, day: 1 });
 }
 
 function parseCivilDate(value: string): CivilDate {

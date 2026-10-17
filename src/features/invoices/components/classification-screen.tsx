@@ -241,7 +241,7 @@ export function ClassificationScreen({
             variant="outline"
             className={nothingToDo ? undefined : 'hidden sm:inline-flex'}
           >
-            <Link to={historyPath}>{nothingToDo ? 'Voltar para as notas' : 'Cancelar'}</Link>
+            <Link to={historyPath}>{nothingToDo ? 'Voltar para as compras' : 'Cancelar'}</Link>
           </Button>
           {nothingToDo ? null : (
             <Button

@@ -37,7 +37,7 @@ export function InvoiceClassificationPage({ historyPath }: InvoiceClassification
           className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center gap-2 self-start text-sm"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
-          Voltar para as notas
+          Voltar para as compras
         </Link>
         <PageHeader
           eyebrow="Operação"
@@ -56,7 +56,7 @@ export function InvoiceClassificationPage({ historyPath }: InvoiceClassification
             description="Esta nota não existe mais ou o endereço está incorreto."
             action={
               <Button asChild variant="outline">
-                <Link to={historyPath}>Ver as notas importadas</Link>
+                <Link to={historyPath}>Ver as compras</Link>
               </Button>
             }
           />

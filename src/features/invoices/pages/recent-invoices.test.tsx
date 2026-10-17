@@ -60,7 +60,7 @@ describe('the recent notes', () => {
     const row = within(await rowOf('Estabelecimento não identificado'));
 
     expect(row.getByText('Digitada à mão')).toBeVisible();
-    expect(row.getByText('Desconto pendente')).toBeVisible();
+    expect(row.getByText('Desconto a distribuir')).toBeVisible();
     // No note, so no key to show.
     expect(row.getByText('5 out, 12:00 · 3 itens')).toBeVisible();
   });
@@ -102,9 +102,9 @@ describe('the recent notes', () => {
     expect(requests[0]?.searchParams.get('offset')).toBe('0');
     // No period: the last ones, whenever they came.
     expect(requests[0]?.searchParams.has('from')).toBe(false);
-    expect(screen.getByRole('link', { name: 'Ver todas as notas' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Ver todas as compras' })).toHaveAttribute(
       'href',
-      '/importar-nota/notas',
+      '/compras',
     );
   });
 
@@ -139,7 +139,7 @@ describe('the four states of the recent notes', () => {
     renderInvoices();
 
     expect(await screen.findByText('Nenhuma nota importada ainda')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Ver todas as notas' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Ver todas as compras' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Colar o endereço' }));
 

@@ -305,7 +305,7 @@ describe('a stock line', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Concluir' }));
 
-    expect(await screen.findByText('Tela das notas importadas')).toBeVisible();
+    expect(await screen.findByText('Tela das compras')).toBeVisible();
     expect(await screen.findByText('Nota classificada.')).toBeVisible();
   });
 
@@ -319,7 +319,7 @@ describe('a stock line', () => {
 
     await confirm(user);
 
-    expect(await screen.findByText('Tela das notas importadas')).toBeVisible();
+    expect(await screen.findByText('Tela das compras')).toBeVisible();
     // The purchase read by this very screen was invalidated, not left stale.
     expect(reads.length).toBeGreaterThan(before);
   });
@@ -367,7 +367,7 @@ describe('a line the API has already entered into the stock', () => {
     expect(
       screen.getByText('Todos os itens desta nota já deram entrada no estoque.'),
     ).toBeVisible();
-    expect(screen.getAllByRole('link', { name: 'Voltar para as notas' })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: 'Voltar para as compras' })).toHaveLength(2);
   });
 });
 
@@ -669,7 +669,7 @@ describe('when the API refuses the discount', () => {
     await confirm(user);
 
     expect(await screen.findByText(/err-classify-1/)).toBeVisible();
-    expect(screen.queryByText('Tela das notas importadas')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tela das compras')).not.toBeInTheDocument();
   });
 });
 
@@ -694,7 +694,7 @@ describe('leaving with choices that were not saved', () => {
 
     await user.click(screen.getByRole('link', { name: 'Cancelar' }));
 
-    expect(await screen.findByText('Tela das notas importadas')).toBeVisible();
+    expect(await screen.findByText('Tela das compras')).toBeVisible();
   });
 });
 
