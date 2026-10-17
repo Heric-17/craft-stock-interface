@@ -6,7 +6,7 @@ import { Quantity, type ConsumptionUnit } from '@/shared/quantity';
 import { NON_BREAKING_SPACE } from './decimal';
 import { formatMoney, formatUnitCost } from './money';
 import { formatBasisPoints, formatMarginPercent, formatPercent } from './percent';
-import { formatQuantity } from './quantity';
+import { formatPrintedQuantity, formatQuantity } from './quantity';
 
 const money = (value: string): Money => Money.parse(requireDecimalString(value));
 const quantity = (value: string, unit: ConsumptionUnit): Quantity =>
@@ -160,5 +160,17 @@ describe('formatBasisPoints', () => {
   it('never shows anyone a number of basis points', () => {
     expect(formatMarginPercent(3333)).toBe('33,33%');
     expect(formatMarginPercent(3333)).not.toContain('3333');
+  });
+});
+
+describe('formatPrintedQuantity', () => {
+  it('reads the number in the unit the note printed, never converting it', () => {
+    expect(formatPrintedQuantity(quantity('2', 'UNIT'), 'UN')).toBe(`2${SPACE}UN`);
+    expect(formatPrintedQuantity(quantity('0.35', 'UNIT'), 'KG')).toBe(`0,35${SPACE}KG`);
+    expect(formatPrintedQuantity(quantity('1500', 'UNIT'), 'G')).toBe(`1.500${SPACE}G`);
+  });
+
+  it('reads a note without a unit as a count', () => {
+    expect(formatPrintedQuantity(quantity('3', 'UNIT'), null)).toBe(`3${SPACE}un`);
   });
 });

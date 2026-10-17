@@ -1,7 +1,7 @@
 import { request } from '@/shared/api/http-client';
 
 import type { PurchaseFilters } from './purchase-keys';
-import type { PurchasePageDto } from './purchase.dto';
+import type { PurchaseDetailDto, PurchasePageDto } from './purchase.dto';
 
 export function fetchPurchases(
   filters: PurchaseFilters,
@@ -16,4 +16,9 @@ export function fetchPurchases(
       offset: filters.offset,
     },
   });
+}
+
+/** One purchase with its lines. The id must be a UUID: anything else is a 400. */
+export function fetchPurchase(id: string, signal: AbortSignal): Promise<PurchaseDetailDto> {
+  return request<PurchaseDetailDto>(`/purchases/${encodeURIComponent(id)}`, { signal });
 }

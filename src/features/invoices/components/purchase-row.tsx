@@ -37,7 +37,7 @@ export function PurchaseRow({ purchase, href }: PurchaseRowProps) {
         </span>
 
         <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-sm font-semibold text-pretty break-words">
+          <span className="text-sm font-semibold text-pretty wrap-break-word">
             {purchase.establishmentName}
           </span>
           <span className="text-muted-foreground text-xs text-pretty">{details(purchase)}</span>

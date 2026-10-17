@@ -58,3 +58,19 @@ export function formatQuantity(quantity: Quantity, options: { exact?: boolean } 
 
   return `${sign}${digits}${NON_BREAKING_SPACE}${symbol}`;
 }
+
+/**
+ * A quantity as a note printed it: `2 UN`, `0,35 KG`. The unit is the note's own
+ * text and says nothing about how the material is consumed, so the value is read
+ * in that unit and never converted. A note that printed no unit is read in
+ * units, which is what a count of packages is.
+ */
+export function formatPrintedQuantity(quantity: Quantity, printedUnit: string | null): string {
+  const digits = formatScaledDecimal(quantity.toScaledUnits(), QUANTITY_DECIMAL_PLACES, {
+    minPlaces: 0,
+    maxPlaces: MAX_QUANTITY_PLACES,
+    grouped: true,
+  });
+
+  return `${digits}${NON_BREAKING_SPACE}${printedUnit ?? 'un'}`;
+}

@@ -34,7 +34,7 @@ export {
   type PeriodResolution,
   type PeriodSelection,
 } from './period';
-export { formatQuantity } from './quantity';
+export { formatPrintedQuantity, formatQuantity } from './quantity';
 export {
   readMarginField,
   readMoneyField,

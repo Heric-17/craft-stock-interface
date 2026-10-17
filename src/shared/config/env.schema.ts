@@ -75,3 +75,19 @@ export function parseEnv(raw: Record<string, unknown>): Env {
 
   throw new MissingEnvironmentError(issues);
 }
+
+/**
+ * Whether the page and the API are on different hosts. The refresh token is a
+ * `SameSite=Lax` cookie, and a browser neither stores it from a cross-site
+ * response nor sends it on a cross-site request — so a page opened at
+ * `localhost` calling an API at `192.168.0.10` signs in fine and loses the
+ * session on every reload, with no error anywhere. Ports do not count: the same
+ * host on two ports is the same site.
+ */
+export function apiOnAnotherHost(apiUrl: string, pageHostname: string): boolean {
+  try {
+    return new URL(apiUrl).hostname !== pageHostname;
+  } catch {
+    return false;
+  }
+}

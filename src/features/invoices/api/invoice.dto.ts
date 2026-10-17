@@ -1,3 +1,6 @@
+import type { ConsumptionUnit } from '@/shared/quantity';
+
+import type { DiscountAllocationMode } from '../model/discount-mode';
 import type { PendingInvoiceStatus } from '../model/status';
 
 /**
@@ -37,4 +40,43 @@ export interface ImportedInvoiceDto {
   purchaseId: string;
   pendingInvoiceId: string | null;
   merchantName: string | null;
+}
+
+/** The insumo a stock line is to create, when none of the existing ones is it. */
+export interface NewMaterialRequestDto {
+  name: string;
+  consumptionUnit: ConsumptionUnit;
+}
+
+/**
+ * One line of the classification. The line is a stock line when `isStockMaterial`
+ * is set, and then it names its material (`materialId`, or `newMaterial` to create
+ * one) and how much one package holds. A line that is not stock sends neither.
+ */
+export interface ClassifiedItemRequestDto {
+  itemId: string;
+  isCompanyExpense: boolean;
+  isStockMaterial: boolean;
+  materialId?: string;
+  newMaterial?: NewMaterialRequestDto;
+  /** A `number` with at most three places: the column holds `Decimal(12,3)`. */
+  packageQuantity?: number;
+}
+
+export interface ManualAllocationRequestDto {
+  itemId: string;
+  /** Two places. */
+  allocatedDiscount: string;
+}
+
+/**
+ * `POST /invoices/purchases/:purchaseId/classification`. The lines and the
+ * discount mode go in the same request on purpose: the API spreads the discount
+ * at the end, over the lines as they will be, so a combination that is valid
+ * together is not refused halfway.
+ */
+export interface ClassificationRequestDto {
+  items: ClassifiedItemRequestDto[];
+  discountAllocationMode?: DiscountAllocationMode;
+  manualAllocation?: ManualAllocationRequestDto[];
 }

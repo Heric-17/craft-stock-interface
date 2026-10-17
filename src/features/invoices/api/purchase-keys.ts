@@ -19,4 +19,6 @@ export const purchaseKeys = {
   all: root,
   lists: () => [...root, 'list'] as const,
   list: (filters: PurchaseFilters) => [...root, 'list', filters] as const,
+  details: () => [...root, 'detail'] as const,
+  detail: (id: string) => [...root, 'detail', id] as const,
 };

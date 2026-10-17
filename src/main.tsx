@@ -1,7 +1,27 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { apiOnAnotherHost } from './shared/config/env.schema';
 import './index.css';
+/** Says, in development, why the session would not survive a reload. */
+function warnIfSessionCannotSurviveReload(): void {
+  const apiUrl: unknown = import.meta.env.VITE_API_URL;
+
+  if (
+    import.meta.env.DEV &&
+    typeof apiUrl === 'string' &&
+    apiOnAnotherHost(apiUrl, location.hostname)
+  ) {
+    console.warn(
+      `A interface está em ${location.hostname} e a API em ${new URL(apiUrl).hostname}. ` +
+        'Com hosts diferentes o navegador descarta o cookie de renovação e a sessão se perde ' +
+        `a cada F5. Abra a interface pelo mesmo endereço da API ou aponte VITE_API_URL para ${location.hostname}.`,
+    );
+  }
+}
+
 async function start(): Promise<void> {
+  warnIfSessionCannotSurviveReload();
+
   const container = document.getElementById('root');
   if (container === null) {
     throw new Error('Elemento #root não encontrado no index.html.');

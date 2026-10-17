@@ -106,7 +106,7 @@ function invoiceRoutes(): RouteObject {
       },
       {
         path: INVOICE_ROUTES.classify,
-        element: <InvoiceClassificationPage />,
+        element: <InvoiceClassificationPage historyPath={IMPORTED_INVOICES_PATH} />,
         handle: { crumb: 'Classificar nota' } satisfies RouteHandle,
       },
     ],

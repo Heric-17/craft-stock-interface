@@ -182,6 +182,8 @@
 
   html {
     background: var(--background);
+    /* A field that takes the focus is scrolled clear of the bar of actions fixed to the foot of a form, not left under it. */
+    scroll-padding-bottom: 9rem;
   }
 
   body {

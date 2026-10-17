@@ -1,5 +1,7 @@
 import type { DecimalString } from '@/shared/money';
 
+import type { DiscountAllocationMode } from '../model/discount-mode';
+
 /** The shop, as the API writes it: its CNPJ when it has one, its name otherwise, as `id`. */
 export interface EstablishmentDto {
   id: string;
@@ -40,4 +42,47 @@ export interface PurchasePageDto {
   total: number;
   limit: number;
   offset: number;
+}
+
+/** One line of a purchase, `PurchaseItemView` of the API. */
+export interface PurchaseItemDto {
+  id: string;
+  materialId: string | null;
+  /** The product's code at the shop. */
+  code: string | null;
+  /** As the note printed it. */
+  description: string;
+  /** How many packages: a `number`, up to three places. */
+  quantity: number;
+  /** As the note printed it, with the till's numeric suffix (`UND9`). Informative only. */
+  unit: string | null;
+  /** Two places. */
+  unitPrice: DecimalString;
+  /** Two places, always the full price. */
+  grossValue: DecimalString;
+  /** Two places. */
+  allocatedDiscount: DecimalString;
+  /** Two places, `grossValue - allocatedDiscount`. */
+  netValue: DecimalString;
+  isCompanyExpense: boolean;
+  isStockMaterial: boolean;
+}
+
+/**
+ * `PurchaseDetailView` of the API: the purchase with its lines. The picture of
+ * the note as captured (`rawInvoiceData`) comes with it and is not read here.
+ */
+export interface PurchaseDetailDto {
+  id: string;
+  purchaseDate: string;
+  accessKey: string | null;
+  establishment: EstablishmentDto | null;
+  grossTotal: DecimalString;
+  discountTotal: DecimalString;
+  netTotal: DecimalString;
+  discountAllocationMode: DiscountAllocationMode;
+  allocationPending: boolean;
+  createdAt: string;
+  /** The order is not guaranteed: the lines are keyed by `id`. */
+  items: PurchaseItemDto[];
 }
