@@ -6,6 +6,8 @@ import {
   ActivityPage,
   CompositeProductEditorPage,
   CompositeProductsPage,
+  ImportedInvoicesPage,
+  InvoiceClassificationPage,
   InvoiceImportPage,
   MaterialLossesPage,
   MaterialsPage,
@@ -18,7 +20,10 @@ import {
 } from './lazy-pages';
 import {
   COMPOSITE_PRODUCT_ROUTES,
+  classificationPath,
   HOME_PATH,
+  IMPORTED_INVOICES_PATH,
+  INVOICE_ROUTES,
   MATERIAL_ROUTES,
   NAV,
   SALE_ROUTES,
@@ -62,6 +67,47 @@ function compositeProductRoutes(): RouteObject {
         path: COMPOSITE_PRODUCT_ROUTES.detail,
         element: <CompositeProductEditorPage />,
         handle: { crumb: 'Editar ficha técnica' } satisfies RouteHandle,
+      },
+    ],
+  };
+}
+
+/**
+ * The capture screen and the second step under it. The capture screen is the
+ * index of its own path and the classification a sibling of it, so the links
+ * between them are relative and never spell an address.
+ */
+function invoiceRoutes(): RouteObject {
+  const handle: RouteHandle = { crumb: NAV.invoices.label };
+
+  return {
+    path: NAV.invoices.path,
+    handle,
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        index: true,
+        element: (
+          <InvoiceImportPage
+            classificationPath={classificationPath}
+            historyPath={IMPORTED_INVOICES_PATH}
+          />
+        ),
+      },
+      {
+        path: INVOICE_ROUTES.imported,
+        element: (
+          <ImportedInvoicesPage
+            classificationPath={classificationPath}
+            importPath={NAV.invoices.path}
+          />
+        ),
+        handle: { crumb: 'Notas importadas' } satisfies RouteHandle,
+      },
+      {
+        path: INVOICE_ROUTES.classify,
+        element: <InvoiceClassificationPage />,
+        handle: { crumb: 'Classificar nota' } satisfies RouteHandle,
       },
     ],
   };
@@ -134,7 +180,7 @@ export const routes: RouteObject[] = [
         element: <AppShell />,
         children: [
           { index: true, element: <Navigate to={HOME_PATH} replace /> },
-          screen(NAV.invoices, InvoiceImportPage),
+          invoiceRoutes(),
           materialRoutes(),
           compositeProductRoutes(),
           saleRoutes(),

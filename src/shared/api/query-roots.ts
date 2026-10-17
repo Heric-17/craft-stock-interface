@@ -13,4 +13,9 @@ export const QUERY_ROOTS = {
   compositeProducts: 'composite-products',
   shortages: 'shortages',
   sales: 'sales',
+  invoices: 'invoices',
+  // Read by the spending and purchases screens; an imported note creates a
+  // purchase, so the invoice mutations invalidate them from here.
+  purchases: 'purchases',
+  spending: 'spending',
 } as const;

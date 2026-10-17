@@ -7,6 +7,7 @@ import { RequireAuth } from '@/features/auth';
 import { ApiError } from '@/shared/api/api-error';
 import { refreshSucceeds } from '@/test/auth';
 import { compositeProductsHandlers } from '@/test/fixtures/composite-products';
+import { invoicesHandlers } from '@/test/fixtures/invoices';
 import { materialsHandlers } from '@/test/fixtures/materials';
 import { salesHandlers } from '@/test/fixtures/sales';
 import { lossesHandlers } from '@/test/fixtures/stock-losses';
@@ -59,7 +60,21 @@ const SCREENS: readonly {
   /** The menu entry that holds this one, which has to be open to reach it. */
   under?: string;
 }[] = [
-  { link: 'Importar nota', heading: 'Importar nota fiscal', path: '/importar-nota' },
+  {
+    link: 'Nova importação',
+    crumb: 'Importar nota',
+    heading: 'Importar nota fiscal',
+    path: '/importar-nota',
+    built: true,
+    under: 'Importar nota',
+  },
+  {
+    link: 'Notas importadas',
+    heading: 'Notas importadas',
+    path: '/importar-nota/notas',
+    built: true,
+    under: 'Importar nota',
+  },
   {
     link: 'Estoque',
     crumb: 'Insumos',
@@ -94,6 +109,9 @@ const SCREENS: readonly {
   { link: 'Configurações', heading: 'Configurações', path: '/configuracoes' },
 ];
 
+/** A screen is a lazy chunk, and the first one a file opens is transformed cold. */
+const LAZY_SCREEN_TIMEOUT = 5000;
+
 describe('application shell', () => {
   // The shell is behind the guard: a session the browser still holds opens it.
   // `/insumos` is a real screen now, so the API it reads answers too.
@@ -104,23 +122,50 @@ describe('application shell', () => {
       ...compositeProductsHandlers(),
       ...lossesHandlers(),
       ...salesHandlers(),
+      ...invoicesHandlers(),
     );
   });
 
   it('opens on the invoice import screen, with the installation name in the sidebar', async () => {
     const router = renderApp('/');
 
+    // The first screen of the file loads its chunk cold, and the capture screen's is a large one.
     expect(
-      await screen.findByRole('heading', { name: 'Importar nota fiscal', level: 1 }),
+      await screen.findByRole(
+        'heading',
+        { name: 'Importar nota fiscal', level: 1 },
+        { timeout: LAZY_SCREEN_TIMEOUT },
+      ),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/importar-nota');
     expect(screen.getAllByText('Ateliê de Teste').length).toBeGreaterThan(0);
+  });
+
+  it('opens the second step of an import under the capture screen, with the purchase in the address', async () => {
+    const router = renderApp('/importar-nota/classificar/compra-1111');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Classificar nota', level: 1 }),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe('/importar-nota/classificar/compra-1111');
+    // It is a screen of the capture's menu entry, and the breadcrumb says where it sits.
+    expect(within(breadcrumb()).getByText('Importar nota')).toBeInTheDocument();
+    expect(within(breadcrumb()).getByText('Classificar nota')).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
   });
 
   it('groups the menu as the mockups do', async () => {
     renderApp('/insumos');
     await screen.findByRole('heading', { name: 'Insumos', level: 1 });
 
+    // "Importar nota" is one entry that opens two screens, closed here: it is a button, and its
+    // screens are not in the menu until it is open.
+    expect(within(menu()).getByRole('button', { name: 'Importar nota' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
     // "Insumos" is one entry that opens three screens; it is open here because
     // this is one of them.
     expect(within(menu()).getByRole('button', { name: 'Insumos' })).toHaveAttribute(
@@ -132,7 +177,6 @@ describe('application shell', () => {
         .getAllByRole('link')
         .map((link) => link.textContent),
     ).toEqual([
-      'Importar nota',
       'Estoque',
       'Perdas',
       'Insumos faltantes',

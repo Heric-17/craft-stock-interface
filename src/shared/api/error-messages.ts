@@ -88,7 +88,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   INVOICE_SOURCE_UNAVAILABLE:
     'O portal da SEFAZ não respondeu. A nota ficou na fila e pode ser tentada de novo.',
   INVOICE_STRUCTURE_CHANGED:
-    'Não foi possível ler a nota no portal da SEFAZ. O suporte já foi avisado.',
+    'Não foi possível ler esta nota. O portal da SEFAZ mudou e o suporte precisa ajustar o sistema antes de tentar de novo.',
   UNSUPPORTED_FEDERAL_UNIT: 'A importação automática ainda não atende o estado desta nota.',
   INVALID_PENDING_INVOICE: 'Esta nota da fila não está em um estado que permita essa ação.',
   HTTP_TRANSPORT: 'Não foi possível buscar a nota agora. Tente novamente.',

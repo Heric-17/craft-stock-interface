@@ -80,6 +80,29 @@ export const SALE_ROUTES = {
 } as const;
 
 /**
+ * The screens under "Importar nota", as segments of its path: every note that was
+ * imported, and the second step of an import, which classifies the purchase the
+ * first one produced. Visible text like the rest of the address, so in
+ * Portuguese, and kept here with every other path.
+ */
+export const INVOICE_ROUTES = {
+  imported: 'notas',
+  classify: 'classificar/:purchaseId',
+} as const;
+
+/**
+ * Where the second step of one purchase is. Absolute, because it is linked from
+ * two screens at different depths — the capture screen and the list of every
+ * imported note — and a relative one would mean a different place from each.
+ */
+export function classificationPath(purchaseId: string): string {
+  return `${NAV.invoices.path}/${INVOICE_ROUTES.classify.replace(':purchaseId', encodeURIComponent(purchaseId))}`;
+}
+
+/** Where every imported note is. */
+export const IMPORTED_INVOICES_PATH = `${NAV.invoices.path}/${INVOICE_ROUTES.imported}`;
+
+/**
  * The screens under "Insumos", as segments of its path: the loss history. Visible
  * text like the rest of the address, so in Portuguese, and kept here with every
  * other path.
@@ -103,9 +126,23 @@ const MATERIALS_MENU: NavParent = {
   ],
 };
 
+/**
+ * "Importar nota" in the menu: capturing a note, and the notes that were already
+ * imported. Two screens about the same thing, so they open from one entry. Each
+ * keeps its own path; only the menu groups them.
+ */
+const INVOICES_MENU: NavParent = {
+  label: NAV.invoices.label,
+  icon: NAV.invoices.icon,
+  children: [
+    { path: NAV.invoices.path, label: 'Nova importação', end: true },
+    { path: `${NAV.invoices.path}/${INVOICE_ROUTES.imported}`, label: 'Notas importadas' },
+  ],
+};
+
 /** The groups of the mockups, in the order they are drawn. */
 export const NAV_GROUPS: readonly NavGroup[] = [
-  { label: 'Operação', entries: [NAV.invoices] },
+  { label: 'Operação', entries: [INVOICES_MENU] },
   { label: 'Produção', entries: [MATERIALS_MENU, NAV.compositeProducts] },
   { label: 'Comercial', entries: [NAV.sales] },
   { label: 'Financeiro', entries: [NAV.spending] },

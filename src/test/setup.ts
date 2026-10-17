@@ -7,6 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { resetSession } from '@/shared/api/session';
 import { storeThemePreference } from '@/shared/theme/theme-storage';
 
+import { removeFakeCamera } from './media';
 import { server } from './msw/server';
 import { DESKTOP_WIDTH, setSystemColorScheme, setViewportWidth } from './viewport';
 
@@ -37,6 +38,8 @@ afterEach(() => {
   // A theme chosen in one test is not the next one's.
   storeThemePreference('system');
   document.documentElement.removeAttribute('data-theme');
+  // A camera installed by one test is not the next one's.
+  removeFakeCamera();
   // The session is module state: one test's sign-in must not be the next one's.
   resetSession();
   server.resetHandlers();
