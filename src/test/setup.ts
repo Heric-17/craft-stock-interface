@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { toast } from 'sonner';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 
@@ -10,6 +10,12 @@ import { storeThemePreference } from '@/shared/theme/theme-storage';
 import { removeFakeCamera } from './media';
 import { server } from './msw/server';
 import { DESKTOP_WIDTH, setSystemColorScheme, setViewportWidth } from './viewport';
+
+// A screen is a lazy chunk that Vite transforms on first use. With a hundred test files each
+// building their own jsdom at once, that takes longer than the one second a query waits by
+// default, and the suite failed on a loaded machine with nothing wrong in the code. The wait
+// is an upper bound: a test that finds its element early is not slowed down.
+configure({ asyncUtilTimeout: 5_000 });
 
 // jsdom has no pointer capture, and a toast's action button asks for it when it is
 // pressed. Nothing on screen depends on it: the shim only keeps the call from throwing.

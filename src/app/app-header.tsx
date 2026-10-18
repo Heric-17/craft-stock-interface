@@ -16,7 +16,7 @@ export function AppHeader({
     return label === null ? [] : [{ label, to: match.pathname }];
   });
   return (
-    <header className="border-border bg-background/90 sticky top-0 z-10 flex h-14 items-center gap-2 border-b px-2 pt-[env(safe-area-inset-top)] backdrop-blur md:h-16 md:gap-3 md:px-10">
+    <header className="border-border bg-background/90 sticky top-0 z-10 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center gap-2 border-b px-2 pt-[env(safe-area-inset-top)] backdrop-blur md:h-16 md:gap-3 md:px-10">
       {onOpenMenu === null ? null : (
         <button
           ref={menuButtonRef}
@@ -35,7 +35,7 @@ export function AppHeader({
             <Link
               to="/"
               className={cn(
-                'text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center text-xs',
+                'text-muted-foreground hover:text-foreground inline-flex min-h-11 min-w-11 items-center justify-center text-xs',
                 crumbs.length === 0 && 'text-foreground font-semibold',
               )}
             >
@@ -60,7 +60,7 @@ export function AppHeader({
                 ) : (
                   <Link
                     to={crumb.to}
-                    className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center text-xs"
+                    className="text-muted-foreground hover:text-foreground inline-flex min-h-11 min-w-11 items-center justify-center text-xs"
                   >
                     {crumb.label}
                   </Link>

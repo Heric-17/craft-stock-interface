@@ -6,6 +6,8 @@ import tailwindcss from '@tailwindcss/vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { parse } from 'yaml';
+import { z } from 'zod';
 
 import { parseEnv } from './src/shared/config/env.schema.ts';
 
@@ -49,6 +51,44 @@ const HTTPS_MODE = 'https';
 const API_PROXY_TARGET = process.env.API_PROXY_TARGET ?? 'http://localhost:3000';
 
 /**
+ * `/api` on the page's own origin, forwarded to the API, which answers under that same prefix.
+ * It is what the production host does with a rewrite rule, so the page and the API are one
+ * origin: no CORS, no mixed content, and the refresh cookie (`Path=/api/auth`) is first-party.
+ */
+function apiProxy() {
+  return { '/api': { target: API_PROXY_TARGET } };
+}
+
+/**
+ * The response headers the production host sends on every page, read from the blueprint
+ * that configures it, so the preview — and the end-to-end suite that runs on it — is served
+ * under the same Content-Security-Policy as the real thing. A policy only tested in
+ * production is a policy that breaks the application on the first deploy.
+ */
+const blueprintSchema = z.object({
+  services: z.array(
+    z.object({
+      headers: z
+        .array(z.object({ path: z.string(), name: z.string(), value: z.string() }))
+        .optional(),
+    }),
+  ),
+});
+
+function productionHeaders(): Record<string, string> {
+  const blueprint = blueprintSchema.parse(
+    parse(readFileSync(fileURLToPath(new URL('./render.yaml', import.meta.url)), 'utf8')),
+  );
+
+  return Object.fromEntries(
+    blueprint.services
+      .flatMap((service) => service.headers ?? [])
+      .filter((rule) => rule.path === '/*')
+      .map((rule) => [rule.name, rule.value]),
+  );
+}
+
+/**
  * The dev server for testing the camera on a phone over the local network.
  *
  * The camera only exists on a secure origin, so the page is served over HTTPS
@@ -67,13 +107,7 @@ function httpsDevServer(mode: string) {
   return {
     server: {
       host: true,
-      proxy: {
-        '/api': {
-          target: API_PROXY_TARGET,
-          rewrite: (path: string) => path.replace(/^\/api/, ''),
-          cookiePathRewrite: { '/auth': '/api/auth' },
-        },
-      },
+      proxy: apiProxy(),
     },
   };
 }
@@ -86,6 +120,7 @@ export default defineConfig(({ mode }) => ({
     ...(mode === HTTPS_MODE ? [basicSsl()] : []),
   ],
   ...httpsDevServer(mode),
+  preview: { headers: productionHeaders(), proxy: apiProxy() },
   define: {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
   },
@@ -99,6 +134,12 @@ export default defineConfig(({ mode }) => ({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // The configuration the suite runs against, pinned here because a variable already set in the
+    // shell wins over `.env.test`: with `VITE_COMPANY_NAME` exported (as the CI job once did for
+    // the build), the screens read one name and the assertions another.
+    env: { VITE_API_URL: 'http://api.test', VITE_COMPANY_NAME: 'Ateliê de Teste' },
+    // Same reason as the wait in the setup file: a loaded machine, not a slow test.
+    testTimeout: 20_000,
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
       provider: 'v8',

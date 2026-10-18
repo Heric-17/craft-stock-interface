@@ -13,12 +13,6 @@ jobs:
   verify:
     runs-on: ubuntu-latest
 
-    env:
-      # The build inlines these, and the Vite config refuses to start without
-      # them. They are not secrets: the real values belong to the deployment.
-      VITE_API_URL: http://api.ci.local
-      VITE_COMPANY_NAME: CraftStock CI
-
     steps:
       - uses: actions/checkout@v4
 
@@ -49,3 +43,9 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # The build inlines these, and the Vite config refuses to start without
+          # them. They are not secrets: the real values belong to the deployment.
+          # Only this step has them: the tests pin their own configuration.
+          VITE_API_URL: http://api.ci.local
+          VITE_COMPANY_NAME: CraftStock CI

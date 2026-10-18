@@ -48,3 +48,6 @@ pnpm-debug.log*
 
 docs/mockups/
 docs/v0-reference/
+dist-e2e
+playwright-report
+test-results

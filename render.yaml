@@ -1,0 +1,82 @@
+# Render Blueprint: the interface as a static site, one per installation.
+#
+# The browser must see ONE host. The refresh cookie is SameSite=Lax, and two subdomains of
+# onrender.com are different sites (onrender.com is on the Public Suffix List), so a page on
+# one and an API on the other would never get the cookie back. The rewrite below makes the
+# API part of this site: the page calls /api/... on its own host, and Render forwards the
+# call to the API's public address. The API must answer under /api (its global prefix) so the
+# cookie it sets gets Path=/api/auth, which is where the browser will send it.
+#
+# Not SameSite=None: Safari blocks it as a third-party cookie.
+services:
+  - type: web
+    runtime: static
+    name: craft-stock-web
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    autoDeployTrigger: commit
+
+    envVars:
+      - key: NODE_VERSION
+        value: 22.23.3
+      # This site's own address followed by /api, e.g. https://craft-stock-web.onrender.com/api.
+      # The same host as the page, which is the point: the browser never talks to another one.
+      - key: VITE_API_URL
+        sync: false
+      # Shown in the shell. One build per installation.
+      - key: VITE_COMPANY_NAME
+        sync: false
+
+    routes:
+      # First, and with /api kept in the destination: a proxy, not a redirect, so the cookie
+      # and the address in the browser stay on this host. Replace the host with the public
+      # address of this installation's API service.
+      - type: rewrite
+        source: /api/*
+        destination: https://craft-stock-api.onrender.com/api/*
+      # Every other path is a screen of the application: a deep link or a reload must open it,
+      # not a 404. A file that exists (an asset) is served as it is, before this rule.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+    headers:
+      # Security headers, on every response. Nothing here is Cache-Control: two rules that set
+      # the same header on one path do not have a documented winner, so caching is set only
+      # where a path belongs to a single rule (below).
+      - path: /*
+        name: Content-Security-Policy
+        # Scripts only from this origin (the theme script is a file for this reason). Styles
+        # allow inline because the chart and the dialogs set style attributes. Calls go to
+        # this origin only: the API is behind the rewrite. Images may come from the storage
+        # host the API returns, whatever it is, over HTTPS.
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      # The camera is how a note's QR code is read; nothing else on the device is used.
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(self), microphone=(), geolocation=()
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000
+
+      # Files under /assets carry a hash of their content in the name: a changed file is a new
+      # address, so the old one can be kept for a year.
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      # The entry point names those hashed files, so it must always be asked for again.
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache
+      - path: /
+        name: Cache-Control
+        value: no-cache

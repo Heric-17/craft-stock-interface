@@ -43,7 +43,7 @@ function SaleCard({ sale, images, href }: { sale: Sale; images: CatalogImages; h
   const moreNames = sale.items.length - names.length;
 
   return (
-    <article className="border-border bg-card shadow-card hover:border-primary focus-within:border-primary relative flex h-full flex-col overflow-hidden rounded-xl border transition-colors">
+    <article className="border-border bg-card shadow-card hover:border-primary focus-within:border-primary has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-2 relative flex h-full flex-col overflow-hidden rounded-xl border transition-colors">
       {/* However many items there are, the photos share the whole frame: one fills it. */}
       <PhotoMosaic
         photos={sale.items.map((item) => ({

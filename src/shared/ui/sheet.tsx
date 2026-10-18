@@ -1,6 +1,6 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
-import type { ComponentProps } from 'react';
+import { useRef, type ComponentProps } from 'react';
 import { cn } from '@/shared/lib/cn';
 export const Sheet = DialogPrimitive.Root;
 export const SheetTrigger = DialogPrimitive.Trigger;
@@ -25,8 +25,14 @@ export function SheetContent({
   className,
   children,
   onInteractOutside,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: SheetContentProps) {
+  // What had the focus when the panel opened. A panel opened by a plain button has no
+  // Radix trigger to hand the focus back to, so without this it would be lost on close.
+  const opener = useRef<Element | null>(null);
+
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay
@@ -49,6 +55,20 @@ export function SheetContent({
             event.preventDefault();
           }
           onInteractOutside?.(event);
+        }}
+        // Runs just before the focus moves into the panel, so the opener still has it.
+        onOpenAutoFocus={(event) => {
+          opener.current = document.activeElement;
+          onOpenAutoFocus?.(event);
+        }}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event);
+          const target = opener.current;
+
+          if (!event.defaultPrevented && target instanceof HTMLElement && target.isConnected) {
+            event.preventDefault();
+            target.focus();
+          }
         }}
         {...props}
       >

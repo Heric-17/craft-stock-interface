@@ -67,7 +67,7 @@ export function CatalogCard({
   return (
     <article
       className={cn(
-        'border-border bg-card shadow-card hover:border-primary focus-within:border-primary group relative flex h-full flex-col overflow-hidden rounded-xl border transition-colors',
+        'border-border bg-card shadow-card hover:border-primary focus-within:border-primary has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-2 group relative flex h-full flex-col overflow-hidden rounded-xl border transition-colors',
         muted && 'opacity-75',
       )}
     >

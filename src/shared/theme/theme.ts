@@ -17,7 +17,7 @@ export type ThemePreference = ResolvedTheme | 'system';
 /** The attribute on `<html>` the tokens are keyed on. */
 export const THEME_ATTRIBUTE = 'data-theme';
 
-/** Where the choice is kept. The same key is read by the inline script in `index.html`. */
+/** Where the choice is kept. The same key is read by `public/theme-init.js`. */
 export const THEME_STORAGE_KEY = 'craftstock-theme';
 
 /** The media query that says the system asks for a dark interface. */

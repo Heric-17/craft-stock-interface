@@ -205,28 +205,32 @@ function Chart({ points }: { points: readonly MonthlyPoint[] }) {
         <p className="text-muted-foreground text-xs text-pretty">{RUNNING_MONTH_LEGEND}</p>
       ) : null}
 
-      <table className="sr-only">
-        <caption>Valor pago por mês</caption>
-        <thead>
-          <tr>
-            <th scope="col">Mês</th>
-            <th scope="col">Gasto</th>
-            <th scope="col">Compras</th>
-          </tr>
-        </thead>
-        <tbody>
-          {points.map((point) => (
-            <tr key={point.month}>
-              <th scope="row">
-                {formatMonthName(point.month)}
-                {point.partial ? ` (${RUNNING_MONTH_BADGE})` : ''}
-              </th>
-              <td>{formatMoney(point.netSpend)}</td>
-              <td>{purchaseCountText(point.purchaseCount, formatCount(point.purchaseCount))}</td>
+      {/* The wrapper is what is hidden: a table is never narrower than its content, so
+          `sr-only` on the table itself kept its full width and pushed the page sideways. */}
+      <div className="sr-only">
+        <table>
+          <caption>Valor pago por mês</caption>
+          <thead>
+            <tr>
+              <th scope="col">Mês</th>
+              <th scope="col">Gasto</th>
+              <th scope="col">Compras</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {points.map((point) => (
+              <tr key={point.month}>
+                <th scope="row">
+                  {formatMonthName(point.month)}
+                  {point.partial ? ` (${RUNNING_MONTH_BADGE})` : ''}
+                </th>
+                <td>{formatMoney(point.netSpend)}</td>
+                <td>{purchaseCountText(point.purchaseCount, formatCount(point.purchaseCount))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

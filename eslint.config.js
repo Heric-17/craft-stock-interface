@@ -95,12 +95,21 @@ const NO_COLOR_LITERALS = [
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'coverage', 'node_modules', 'docs/v0-reference', 'src/shared/api/generated'],
+    ignores: [
+      'dist',
+      'dist-e2e',
+      'playwright-report',
+      'test-results',
+      'coverage',
+      'node_modules',
+      'docs/v0-reference',
+      'src/shared/api/generated',
+    ],
   },
 
   // Build tooling: plain JS/CommonJS, outside the application's TypeScript project.
   {
-    files: ['**/*.js', '**/*.cjs'],
+    files: ['**/*.js', '**/*.cjs', '**/*.mjs'],
     extends: [js.configs.recommended],
     languageOptions: {
       globals: { ...globals.node },
@@ -108,10 +117,30 @@ export default tseslint.config(
     },
   },
 
+  // Scripts served as they are, from public/: they run in the browser, outside the bundle.
+  {
+    files: ['public/**/*.js'],
+    languageOptions: { globals: { ...globals.browser }, sourceType: 'script' },
+  },
+
   // The Vite config is TypeScript, and belongs to the Node project rather than
   // the application one.
   {
     files: ['vite.config.ts'],
+    extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
+    languageOptions: {
+      globals: globals.node,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+
+  // The end-to-end suite runs in Node and drives a browser: it is not application code, so
+  // the rules about money, formatting and storage do not apply to what it types into a field.
+  {
+    files: ['e2e/**/*.ts', 'playwright.config.ts'],
     extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       globals: globals.node,
@@ -267,6 +296,13 @@ export default tseslint.config(
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/unbound-method': 'off',
     },
+  },
+
+  // Contrast is arithmetic on colours read from the stylesheet, not on money or quantities: the
+  // bans on parsing and rounding numbers guard values that must stay exact decimals.
+  {
+    files: ['src/shared/theme/contrast.test.ts'],
+    rules: { 'no-restricted-syntax': 'off' },
   },
 
   prettier,

@@ -3,3 +3,6 @@ dist
 coverage
 docs/v0-reference
 package-lock.json
+dist-e2e
+playwright-report
+test-results
