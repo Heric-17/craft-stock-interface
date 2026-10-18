@@ -1,9 +1,14 @@
-import { formatMoney, formatQuantity } from '@/shared/format';
+import { formatMoney, formatQuantity, formatWait } from '@/shared/format';
 import { Money, parseDecimalString } from '@/shared/money';
 import { Quantity, type ConsumptionUnit } from '@/shared/quantity';
 
 import type { ApiError } from './api-error';
 import type { DiscountAllocationReason } from './error-codes';
+
+// The sentence without a time. It is also the answer to a 429 that did not come
+// from the API (a proxy's own limit): no `code` to find, and still a wait, not a
+// failure.
+const RATE_LIMIT_FALLBACK = 'Houve tentativas demais. Aguarde um pouco antes de tentar de novo.';
 
 /**
  * One message per error the API can answer with, in Portuguese, written for
@@ -106,6 +111,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
   // Dinheiro
   INVALID_MONEY_OPERATION: 'Não foi possível calcular esse valor.',
+
+  // Limite de requisições. Com `details`, a frase diz quanto esperar, por
+  // `rateLimitMessage`; esta é a versão sem o tempo.
+  RATE_LIMIT_EXCEEDED: RATE_LIMIT_FALLBACK,
 };
 
 /**
@@ -165,6 +174,12 @@ export function messageForError(error: ApiError): string {
     return DISCOUNT_ALLOCATION_MESSAGES[allocation.reason];
   }
 
+  const waiting = rateLimitMessage(error);
+
+  if (waiting !== undefined) {
+    return waiting;
+  }
+
   const known = ERROR_MESSAGES[error.code];
 
   if (known !== undefined) {
@@ -196,11 +211,30 @@ function messageForStatus(statusCode: number): string {
     return CONFLICT;
   }
 
+  if (statusCode === 429) {
+    return RATE_LIMIT_FALLBACK;
+  }
+
   if (statusCode === 502 || statusCode === 503) {
     return UNAVAILABLE;
   }
 
   return UNEXPECTED;
+}
+
+/**
+ * "Houve tentativas demais. Tente novamente em 12 minutos.": the wait comes
+ * from `retryAfterSeconds` in `details` and nowhere else.
+ *
+ * Returns `undefined` when this is not a rate limit or the body did not carry
+ * the wait, in which case the sentence without the time is what is shown.
+ */
+export function rateLimitMessage(error: ApiError): string | undefined {
+  const seconds = error.retryAfterSeconds;
+
+  return seconds === undefined
+    ? undefined
+    : `Houve tentativas demais. Tente novamente em ${formatWait(seconds)}.`;
 }
 
 /**

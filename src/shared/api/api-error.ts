@@ -101,6 +101,24 @@ export class ApiError extends Error {
   }
 
   /**
+   * The request was refused only because there were too many of them. Nothing
+   * is wrong with it, so it is never repeated by the client on its own: the
+   * wait is the answer, and a retry inside it is refused again and, on a
+   * login, counts against the budget.
+   */
+  get isRateLimited(): boolean {
+    return this.statusCode === 429;
+  }
+
+  /**
+   * Seconds until the request can succeed, from `details`, when this is a rate
+   * limit that said so. The only source of the number.
+   */
+  get retryAfterSeconds(): number | undefined {
+    return this.detailsFor('RATE_LIMIT_EXCEEDED')?.retryAfterSeconds;
+  }
+
+  /**
    * What the user reports to support. The `errorId` when the API recorded one,
    * the `correlationId` otherwise — which is what is left when the response had
    * no body, or failed before the handler and only carried the header.

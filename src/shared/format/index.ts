@@ -17,6 +17,7 @@ export {
   InvalidDateValueError,
 } from './date-time';
 export { NON_BREAKING_SPACE } from './decimal';
+export { formatCountdown, formatWait } from './duration';
 export { moneyInputText, quantityInputText } from './input-text';
 export { formatMonthLabel, formatMonthName, formatMonthNameShort } from './month';
 export { formatMoney, formatUnitCost } from './money';

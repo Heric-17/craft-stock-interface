@@ -419,3 +419,119 @@ describe('recovering a password without being signed in', () => {
     expect(await screen.findByRole('heading', { name: 'Nova senha' })).toBeInTheDocument();
   });
 });
+
+describe('signing in past the attempt limit', () => {
+  function rateLimitBody(retryAfterSeconds: number) {
+    return {
+      statusCode: 429,
+      code: 'RATE_LIMIT_EXCEEDED',
+      error: 'RateLimitExceededError',
+      message: 'Too many requests. Try again later.',
+      details: { retryAfterSeconds, retryAt: '2026-10-18T16:40:12.000Z' },
+      path: '/api/auth/login',
+      correlationId: 'corr-limit',
+    };
+  }
+
+  it('says there were too many attempts and when to try again, and stops the button with a countdown', async () => {
+    server.use(refreshRefused());
+    const received = loginAnswers(429, rateLimitBody(900));
+    const user = userEvent.setup();
+    const { router } = renderApp('/');
+
+    await screen.findByRole('heading', { name: 'Entrar' });
+    await fillAndSubmit(user, 'senha-errada');
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Houve tentativas demais. Tente novamente em 15');
+    expect(alert).toHaveTextContent('minutos');
+    // Never the generic failure, never the English text, never a support code.
+    expect(alert).not.toHaveTextContent(/Algo deu errado|Too many/);
+    expect(document.body.textContent).not.toContain('Envie este código');
+    expect(noToastOnScreen()).toBeNull();
+
+    const button = screen.getByRole('button', { name: /^Tente de novo em \d+:\d{2}$/ });
+    expect(button).toBeDisabled();
+    expect(button).toHaveTextContent(/^Tente de novo em (15:00|14:5\d)$/);
+
+    // What was typed is kept, and the page stays on the login.
+    expect(screen.getByLabelText('E-mail')).toHaveValue('marina@exemplo.com.br');
+    expect(locationOf(router)).toBe('/login');
+    expect(received).toHaveLength(1);
+  });
+
+  it('does not repeat the request on its own, and does not let Enter send it during the wait', async () => {
+    let refreshCalls = 0;
+    server.use(
+      http.post(`${API}/auth/refresh`, () => {
+        refreshCalls += 1;
+        return HttpResponse.json(invalidRefreshTokenBody(), { status: 401 });
+      }),
+    );
+    const received = loginAnswers(429, rateLimitBody(900));
+    const user = userEvent.setup();
+    renderApp('/');
+
+    await screen.findByRole('heading', { name: 'Entrar' });
+    await fillAndSubmit(user, 'senha-errada');
+    await screen.findByRole('alert');
+
+    await user.type(screen.getByLabelText('Senha'), '{Enter}');
+    await user.click(screen.getByRole('button', { name: /^Tente de novo em/ }));
+
+    // Only the restore on load asked for a session; the 429 renewed nothing.
+    expect(refreshCalls).toBe(1);
+    expect(received).toHaveLength(1);
+  });
+
+  it('gives the button back, and takes the message down, when the wait is over', async () => {
+    server.use(refreshRefused());
+    const received: unknown[] = [];
+    server.use(
+      http.post(`${API}/auth/login`, async ({ request }) => {
+        received.push(await request.json());
+
+        return received.length === 1
+          ? HttpResponse.json(rateLimitBody(1), { status: 429 })
+          : HttpResponse.json(authResponse('login-token'));
+      }),
+    );
+    const user = userEvent.setup();
+    const { router } = renderApp('/');
+
+    await screen.findByRole('heading', { name: 'Entrar' });
+    await fillAndSubmit(user);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Houve tentativas demais');
+
+    const button = await screen.findByRole('button', { name: 'Entrar' }, { timeout: 3000 });
+    expect(button).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    await user.click(button);
+
+    expect(
+      await screen.findByRole('heading', { name: 'Importar nota fiscal' }),
+    ).toBeInTheDocument();
+    expect(locationOf(router)).toBe('/importar-nota');
+    expect(received).toHaveLength(2);
+  });
+
+  it('keeps a wrong-password message when it is not a wait', async () => {
+    server.use(refreshRefused());
+    loginAnswers(401, {
+      statusCode: 401,
+      code: 'INVALID_CREDENTIALS',
+      error: 'InvalidCredentialsError',
+      message: 'Invalid email or password.',
+    });
+    const user = userEvent.setup();
+    renderApp('/');
+
+    await screen.findByRole('heading', { name: 'Entrar' });
+    await fillAndSubmit(user, 'senha-errada');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('E-mail ou senha incorretos.');
+    expect(screen.getByRole('button', { name: 'Entrar' })).toBeEnabled();
+  });
+});

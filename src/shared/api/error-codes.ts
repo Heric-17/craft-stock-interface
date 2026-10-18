@@ -30,6 +30,7 @@ export const STRUCTURED_DETAIL_CODES = [
   'DISCOUNT_ALLOCATION',
   'PENDING_DISCOUNT_ALLOCATION',
   'UNSUPPORTED_IMAGE_MIME_TYPE',
+  'RATE_LIMIT_EXCEEDED',
 ] as const;
 
 export type StructuredDetailCode = (typeof STRUCTURED_DETAIL_CODES)[number];
@@ -124,6 +125,19 @@ export interface UnsupportedImageMimeTypeDetails {
 }
 
 /**
+ * Too many requests from this address to this route. It is neither the
+ * client's fault nor ours: the same request passes once the wait is over.
+ *
+ * `retryAfterSeconds` is a whole number, rounded up and never below 1, and it
+ * is what a countdown runs on — it does not depend on the clock of the device.
+ * `retryAt` is the same instant as ISO-8601.
+ */
+export interface RateLimitExceededDetails {
+  retryAfterSeconds: number;
+  retryAt: string;
+}
+
+/**
  * One offending field of a rejected body.
  *
  * `path` is the field's name in the API's DTO, with a dot for a nested object
@@ -145,6 +159,7 @@ export interface ErrorDetailsByCode {
   DISCOUNT_ALLOCATION: DiscountAllocationDetails;
   PENDING_DISCOUNT_ALLOCATION: PendingDiscountAllocationDetails;
   UNSUPPORTED_IMAGE_MIME_TYPE: UnsupportedImageMimeTypeDetails;
+  RATE_LIMIT_EXCEEDED: RateLimitExceededDetails;
   VALIDATION_FAILED: readonly ValidationIssue[];
 }
 
@@ -252,6 +267,16 @@ export function isUnsupportedImageMimeTypeDetails(
   );
 }
 
+export function isRateLimitExceededDetails(value: unknown): value is RateLimitExceededDetails {
+  return (
+    isRecord(value) &&
+    typeof value.retryAfterSeconds === 'number' &&
+    Number.isFinite(value.retryAfterSeconds) &&
+    value.retryAfterSeconds >= 1 &&
+    typeof value.retryAt === 'string'
+  );
+}
+
 const GUARDS: { [K in StructuredDetailCode]: (value: unknown) => value is ErrorDetailsByCode[K] } =
   {
     ENTITY_IN_USE: isEntityInUseDetails,
@@ -261,6 +286,7 @@ const GUARDS: { [K in StructuredDetailCode]: (value: unknown) => value is ErrorD
     DISCOUNT_ALLOCATION: isDiscountAllocationDetails,
     PENDING_DISCOUNT_ALLOCATION: isPendingDiscountAllocationDetails,
     UNSUPPORTED_IMAGE_MIME_TYPE: isUnsupportedImageMimeTypeDetails,
+    RATE_LIMIT_EXCEEDED: isRateLimitExceededDetails,
   };
 
 /**

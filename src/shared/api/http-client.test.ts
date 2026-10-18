@@ -185,3 +185,69 @@ describe('http-client', () => {
     expect(url).not.toContain('name=');
   });
 });
+
+describe('http-client on a rate limit', () => {
+  const limited = {
+    statusCode: 429,
+    code: 'RATE_LIMIT_EXCEEDED',
+    error: 'RateLimitExceededError',
+    message: 'Too many requests. Try again later.',
+    details: { retryAfterSeconds: 30, retryAt: '2026-10-18T16:40:12.000Z' },
+  };
+
+  it('answers a 429 once: no repeat, and no renewal of a session that is fine', async () => {
+    let calls = 0;
+    let renewals = 0;
+
+    server.use(
+      http.get(`${API}/materials`, () => {
+        calls += 1;
+        return HttpResponse.json(limited, { status: 429 });
+      }),
+    );
+
+    configureSession({
+      getAccessToken: () => 'token-de-acesso',
+      refreshAccessToken: () => {
+        renewals += 1;
+        return Promise.reject(new Error('not expected'));
+      },
+    });
+
+    try {
+      const error = (await request('/materials').catch((caught: unknown) => caught)) as ApiError;
+
+      expect(error).toBeInstanceOf(ApiError);
+      expect(error.isRateLimited).toBe(true);
+      expect(error.retryAfterSeconds).toBe(30);
+    } finally {
+      configureSession({
+        getAccessToken: () => null,
+        refreshAccessToken: () => Promise.reject(new Error('not expected')),
+      });
+    }
+
+    expect(calls).toBe(1);
+    expect(renewals).toBe(0);
+  });
+
+  it('answers a 429 on a public route once as well', async () => {
+    let calls = 0;
+
+    server.use(
+      http.post(`${API}/auth/login`, () => {
+        calls += 1;
+        return HttpResponse.json(limited, { status: 429 });
+      }),
+    );
+
+    const error = (await request('/auth/login', {
+      method: 'POST',
+      body: {},
+      public: true,
+    }).catch((caught: unknown) => caught)) as ApiError;
+
+    expect(messageForError(error)).toContain('Tente novamente em 30');
+    expect(calls).toBe(1);
+  });
+});

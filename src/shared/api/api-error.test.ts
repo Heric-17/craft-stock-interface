@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 
 import { env } from '@/shared/config/env';
+import { NON_BREAKING_SPACE } from '@/shared/format';
 import { server } from '@/test/msw/server';
 
 import type { ApiError } from './api-error';
@@ -10,6 +11,7 @@ import {
   entityInUseSummary,
   insufficientStockSummary,
   messageForError,
+  rateLimitMessage,
   unsupportedImageSummary,
 } from './error-messages';
 import { request } from './http-client';
@@ -593,5 +595,80 @@ describe('the session', () => {
 
     expect(wrongPassword.isSessionOver).toBe(false);
     expect(messageForError(wrongPassword)).toBe('E-mail ou senha incorretos.');
+  });
+});
+
+describe('RATE_LIMIT_EXCEEDED', () => {
+  const body = {
+    statusCode: 429,
+    code: 'RATE_LIMIT_EXCEEDED',
+    error: 'RateLimitExceededError',
+    message: 'Too many requests. Try again later.',
+    details: { retryAfterSeconds: 742, retryAt: '2026-10-18T16:40:12.000Z' },
+    path: '/api/auth/login',
+    correlationId: 'corr-limit',
+  };
+
+  it('reads the wait from details, and says it in Portuguese', async () => {
+    const error = await failWith(body, 429);
+
+    expect(error.retryAfterSeconds).toBe(742);
+    expect(messageForError(error)).toBe(
+      `Houve tentativas demais. Tente novamente em 13${NON_BREAKING_SPACE}minutos.`,
+    );
+    expect(rateLimitMessage(error)).toBe(messageForError(error));
+    expect(messageForError(error)).not.toMatch(/Too many|requests/);
+  });
+
+  it('is a wait, not a failure: no support code, not unexpected, not a session problem', async () => {
+    const error = await failWith(body, 429);
+
+    expect(error.isRateLimited).toBe(true);
+    expect(error.isUnexpected).toBe(false);
+    expect(error.isUnauthenticated).toBe(false);
+    expect(error.errorId).toBeUndefined();
+  });
+
+  it('does not read a number out of the English message', async () => {
+    const error = await failWith(
+      { ...body, details: undefined, message: 'Too many requests. Retry in 5 seconds.' },
+      429,
+    );
+
+    expect(error.retryAfterSeconds).toBeUndefined();
+    expect(messageForError(error)).toBe(
+      'Houve tentativas demais. Aguarde um pouco antes de tentar de novo.',
+    );
+  });
+
+  it.each([
+    ['a missing wait', { retryAt: '2026-10-18T16:40:12.000Z' }],
+    ['a wait that is not a number', { retryAfterSeconds: '742', retryAt: 'x' }],
+    ['a wait below one second', { retryAfterSeconds: 0, retryAt: 'x' }],
+  ])('falls back to the sentence without a time for %s', async (_name, details) => {
+    const error = await failWith({ ...body, details }, 429);
+
+    expect(error.retryAfterSeconds).toBeUndefined();
+    expect(messageForError(error)).toBe(
+      'Houve tentativas demais. Aguarde um pouco antes de tentar de novo.',
+    );
+  });
+
+  it('still reads as a wait when a proxy answers 429 with no code at all', async () => {
+    server.use(
+      http.post(
+        `${API}/probe`,
+        () => new HttpResponse('<html>Too Many Requests</html>', { status: 429 }),
+      ),
+    );
+
+    const error = (await request('/probe', { method: 'POST', body: {}, public: true }).catch(
+      (caught: unknown) => caught,
+    )) as ApiError;
+
+    expect(error.isRateLimited).toBe(true);
+    expect(messageForError(error)).toBe(
+      'Houve tentativas demais. Aguarde um pouco antes de tentar de novo.',
+    );
   });
 });

@@ -18,7 +18,8 @@ function shouldRetry(failureCount: number, error: unknown): boolean {
 }
 
 describe('the query client retry policy', () => {
-  it.each([400, 401, 403, 404, 409, 422])(
+  // A 429 is a wait the API asked for; asking again inside it is refused again.
+  it.each([400, 401, 403, 404, 409, 422, 429])(
     'never retries a %i: it was understood and refused',
     (status) => {
       expect(shouldRetry(0, failure(status))).toBe(false);

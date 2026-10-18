@@ -173,3 +173,35 @@ describe('asking for the link', () => {
     expect(await screen.findByText('Você está na tela de login.')).toBeVisible();
   });
 });
+
+describe('asking for the link past the limit', () => {
+  it('says there were too many requests and when to try again, not a generic failure', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${API}/auth/forgot-password`, () =>
+        HttpResponse.json(
+          {
+            statusCode: 429,
+            code: 'RATE_LIMIT_EXCEEDED',
+            error: 'RateLimitExceededError',
+            message: 'Too many requests. Try again later.',
+            details: { retryAfterSeconds: 3600, retryAt: '2026-10-18T17:40:12.000Z' },
+          },
+          { status: 429 },
+        ),
+      ),
+    );
+    renderForgotPassword();
+
+    await user.type(await screen.findByLabelText('E-mail'), 'ana@exemplo.com.br');
+    await user.click(screen.getByRole('button', { name: 'Enviar link' }));
+
+    const alert = await screen.findByRole('alert');
+
+    expect(alert).toHaveTextContent('Houve tentativas demais. Tente novamente em 1');
+    expect(alert).toHaveTextContent('hora');
+    expect(alert).not.toHaveTextContent(/Algo deu errado|Too many/);
+    // It did not move on to "link sent": nothing was sent.
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+});
