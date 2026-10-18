@@ -18,4 +18,7 @@ export const QUERY_ROOTS = {
   // purchase, so the invoice mutations invalidate them from here.
   purchases: 'purchases',
   spending: 'spending',
+  // The feed of what was done in the system. Every write of every other feature
+  // lands in it, so it is read fresh and not invalidated from each mutation.
+  activity: 'activity',
 } as const;

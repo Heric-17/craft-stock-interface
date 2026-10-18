@@ -61,6 +61,18 @@ export const NAV = {
 } as const satisfies Record<string, NavEntry>;
 
 /**
+ * The screens a visitor can open without signing in. Visible text like the rest
+ * of the address, so in Portuguese, and kept here with every other path. The
+ * link in the password reset e-mail points at `resetPassword`: the API builds it
+ * from `WEB_APP_URL`, so renaming this path means changing the API's side too.
+ */
+export const AUTH_ROUTES = {
+  login: '/login',
+  forgotPassword: '/esqueci-senha',
+  resetPassword: '/redefinir-senha',
+} as const;
+
+/**
  * The screens under "Fichas técnicas", as segments of its path. They are
  * visible text like the rest of the address, so they are in Portuguese, and
  * they live here with every other path instead of inside the components that

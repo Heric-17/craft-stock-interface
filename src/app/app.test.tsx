@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RequireAuth } from '@/features/auth';
 import { ApiError } from '@/shared/api/api-error';
 import { refreshSucceeds } from '@/test/auth';
+import { activityHandlers } from '@/test/fixtures/activity';
 import { compositeProductsHandlers } from '@/test/fixtures/composite-products';
 import { classificationHandlers, invoicesHandlers } from '@/test/fixtures/invoices';
 import { materialsHandlers } from '@/test/fixtures/materials';
@@ -100,8 +101,8 @@ const SCREENS: readonly {
   },
   { link: 'Gastos da empresa', heading: 'Gastos da empresa', path: '/gastos', built: true },
   { link: 'Compras', heading: 'Compras', path: '/compras', built: true },
-  { link: 'Minhas atividades', heading: 'Minhas atividades', path: '/atividades' },
-  { link: 'Configurações', heading: 'Configurações', path: '/configuracoes' },
+  { link: 'Minhas atividades', heading: 'Minhas atividades', path: '/atividades', built: true },
+  { link: 'Configurações', heading: 'Configurações', path: '/configuracoes', built: true },
 ];
 
 /** A screen is a lazy chunk, and the first one a file opens is transformed cold. */
@@ -121,6 +122,7 @@ describe('application shell', () => {
       // Before the invoice routes: `/purchases/spending` would otherwise be read as a purchase id.
       ...spendingHandlers(),
       ...invoicesHandlers(),
+      ...activityHandlers(),
     );
   });
 

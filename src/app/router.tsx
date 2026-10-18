@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import { Navigate, type RouteObject } from 'react-router';
-import { LoginPage, RequireAuth } from '@/features/auth';
+import { ForgotPasswordPage, LoginPage, RequireAuth, ResetPasswordPage } from '@/features/auth';
 import { AppShell } from './app-shell';
 import {
   ActivityPage,
@@ -20,6 +20,7 @@ import {
   SpendingPage,
 } from './lazy-pages';
 import {
+  AUTH_ROUTES,
   COMPOSITE_PRODUCT_ROUTES,
   classificationPath,
   HOME_PATH,
@@ -234,8 +235,23 @@ function purchaseRoutes(): RouteObject {
 
 export const routes: RouteObject[] = [
   {
-    path: '/login',
-    element: <LoginPage />,
+    path: AUTH_ROUTES.login,
+    element: <LoginPage forgotPasswordPath={AUTH_ROUTES.forgotPassword} />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: AUTH_ROUTES.forgotPassword,
+    element: <ForgotPasswordPage loginPath={AUTH_ROUTES.login} />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: AUTH_ROUTES.resetPassword,
+    element: (
+      <ResetPasswordPage
+        loginPath={AUTH_ROUTES.login}
+        forgotPasswordPath={AUTH_ROUTES.forgotPassword}
+      />
+    ),
     errorElement: <RouteErrorBoundary />,
   },
   {

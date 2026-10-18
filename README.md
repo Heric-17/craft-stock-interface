@@ -48,6 +48,15 @@ HTTP (conteúdo misto) e `localhost` no celular é o próprio celular.
 3. Rode `npm run dev:https` e abra o endereço de "Network" no celular. O navegador avisa que o
    certificado não é confiável: continue mesmo assim, é o certificado de desenvolvimento.
 
+**Se o servidor cair ao abrir a página no celular** com `server.shouldUpgradeCallback is not a
+function`, o problema é o Node, não o projeto: a versão 22.21.0 tem um defeito
+([nodejs/node#60336](https://github.com/nodejs/node/issues/60336)) que derruba o servidor HTTPS do
+Vite na primeira conexão. A tela do navegador mostra "O CraftStock não conseguiu iniciar", com
+"Failed to fetch dynamically imported module". Use o Node 22.20 ou anterior, ou uma versão
+posterior à 22.21; o 22.23.3 foi testado e funciona. Confira com `node -v` no mesmo terminal em que
+roda o `dev:https`: com `nvm`, um Node instalado à parte em `C:\Program Files\nodejs` pode vir antes
+no `PATH` e continuar valendo mesmo depois do `nvm use`.
+
 Com a API em desenvolvimento, `AUTH_COOKIE_SECURE=false` (ver o `.env.example` do backend). O
 repasse reescreve o `path` do cookie de renovação de `/auth` para `/api/auth`; sem isso o navegador
 não o devolveria e a sessão não sobreviveria a um recarregamento.

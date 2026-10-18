@@ -10,3 +10,6 @@ export type { PurchaseFilters } from './api/purchase-keys';
 export type { PurchaseDetail, PurchaseLine } from './model/purchase-detail';
 export type { PurchasePage, PurchaseSummary } from './model/purchase';
 export { ClassificationSummary } from './components/classification-summary';
+
+// The words of the ways to spread a discount, read by the activity feed.
+export { DISCOUNT_MODE_LABELS } from './model/labels';

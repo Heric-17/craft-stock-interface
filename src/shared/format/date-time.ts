@@ -98,6 +98,37 @@ export function formatDateTime(value: Date | string, now: Date = new Date()): st
   return `${moment.day} ${month}${year}, ${clock}`;
 }
 
+/**
+ * A calendar day as a heading: `Hoje`, `Ontem`, `12 jun`, and with the year once
+ * it is not this one, `12 jun 2025`. The same reach as `formatDateTime`, minus
+ * the clock, for a list that is grouped by day and shows the time on each row.
+ */
+export function formatBusinessDay(value: Date | string, now: Date = new Date()): string {
+  const moment = readBusinessDateTime(toDate(value));
+  const today = readBusinessDateTime(now);
+  const daysApart = today.dayNumber - moment.dayNumber;
+
+  if (daysApart === 0) {
+    return 'Hoje';
+  }
+
+  if (daysApart === 1) {
+    return 'Ontem';
+  }
+
+  const month = MONTH_ABBREVIATIONS[moment.month - 1] ?? '';
+  const year = moment.year === today.year ? '' : ` ${moment.year}`;
+
+  return `${moment.day} ${month}${year}`;
+}
+
+/** The time of day of an instant in the business calendar: `14:32`. */
+export function formatClock(value: Date | string): string {
+  const moment = readBusinessDateTime(toDate(value));
+
+  return `${moment.hour}:${moment.minute}`;
+}
+
 /** The calendar day of an instant in the business calendar, for grouping. */
 export function businessDayNumber(value: Date | string): number {
   return readBusinessDateTime(toDate(value)).dayNumber;

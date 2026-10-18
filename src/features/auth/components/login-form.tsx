@@ -1,12 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { Link } from 'react-router';
 import { applyApiErrorToForm } from '@/shared/api/form-errors';
 import { Button } from '@/shared/ui/button';
 import { showErrorToast } from '@/shared/ui/error-toast';
 import { TextField } from '@/shared/ui/text-field';
 import { useLogin } from '../api/use-login';
 import { loginSchema, type LoginFormValues } from '../model/login.schema';
-export function LoginForm() {
+export function LoginForm({ forgotPasswordPath }: { forgotPasswordPath: string }) {
   const { register, handleSubmit, setError, formState } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '' },
@@ -41,6 +42,12 @@ export function LoginForm() {
         error={formState.errors.password?.message}
         {...register('password')}
       />
+      <Link
+        to={forgotPasswordPath}
+        className="text-primary -mt-3 inline-flex min-h-11 items-center self-start text-sm font-medium underline-offset-4 hover:underline"
+      >
+        Esqueci minha senha
+      </Link>
       {formError === undefined ? null : (
         <p
           role="alert"

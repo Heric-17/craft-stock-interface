@@ -9,7 +9,13 @@
  */
 export { formatCount } from './count';
 export { formatSheetMoney, formatSheetPercent, toCsv } from './csv';
-export { businessDayNumber, formatDateTime, InvalidDateValueError } from './date-time';
+export {
+  businessDayNumber,
+  formatBusinessDay,
+  formatClock,
+  formatDateTime,
+  InvalidDateValueError,
+} from './date-time';
 export { NON_BREAKING_SPACE } from './decimal';
 export { moneyInputText, quantityInputText } from './input-text';
 export { formatMonthLabel, formatMonthName, formatMonthNameShort } from './month';

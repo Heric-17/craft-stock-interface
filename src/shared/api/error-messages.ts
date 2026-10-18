@@ -23,6 +23,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
   INVALID_REFRESH_TOKEN: 'Sua sessão expirou. Entre novamente.',
   INVALID_TOKEN: 'Sua sessão expirou. Entre novamente.',
   UNAUTHORIZED: 'Sua sessão expirou. Entre novamente.',
+  // Na troca de senha, é o campo da senha atual que a tela marca.
+  INVALID_CURRENT_PASSWORD: 'A senha atual não confere.',
+  // Na redefinição por e-mail, a tela troca o formulário por um aviso e a saída: pedir outro link.
+  INVALID_PASSWORD_RESET_TOKEN:
+    'Este link não vale mais. Ele expira em 1 hora e só pode ser usado uma vez. Peça um novo.',
 
   // Usuários
   EMAIL_ALREADY_IN_USE: 'Já existe uma conta com esse e-mail.',

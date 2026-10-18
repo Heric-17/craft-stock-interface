@@ -389,3 +389,33 @@ describe('a session that ends', () => {
     expect(screen.queryByRole('heading', { name: 'Entrar' })).not.toBeInTheDocument();
   });
 });
+
+describe('recovering a password without being signed in', () => {
+  it('opens the request for the link from the login, without sending the visitor back to it', async () => {
+    server.use(refreshRefused());
+    const user = userEvent.setup();
+    const { router } = renderApp('/login');
+
+    await user.click(await screen.findByRole('link', { name: 'Esqueci minha senha' }));
+
+    expect(await screen.findByRole('heading', { name: 'Esqueci minha senha' })).toBeInTheDocument();
+    expect(locationOf(router)).toBe('/esqueci-senha');
+  });
+
+  it('opens the screen of the e-mail link as it is, with the code in its address', async () => {
+    server.use(refreshRefused());
+    const { router } = renderApp(`/redefinir-senha#token=${'ab12'.repeat(16)}`);
+
+    expect(await screen.findByRole('heading', { name: 'Nova senha' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/redefinir-senha');
+    // Reaching it must not bounce through the login, and must not leave the code behind.
+    expect(router.state.location.hash).toBe('');
+  });
+
+  it('lets someone who is already signed in open the link too', async () => {
+    server.use(refreshSucceeds());
+    renderApp(`/redefinir-senha#token=${'ab12'.repeat(16)}`);
+
+    expect(await screen.findByRole('heading', { name: 'Nova senha' })).toBeInTheDocument();
+  });
+});

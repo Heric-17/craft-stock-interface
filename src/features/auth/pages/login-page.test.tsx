@@ -41,7 +41,7 @@ describe('the login at 360px', () => {
         <QueryClientProvider client={new QueryClient()}>
           <SessionProvider>
             <MemoryRouter initialEntries={['/login']}>
-              <LoginPage />
+              <LoginPage forgotPasswordPath="/esqueci-senha" />
             </MemoryRouter>
           </SessionProvider>
         </QueryClientProvider>
@@ -114,6 +114,16 @@ describe('the login at 360px', () => {
 
     expect(layout?.className).toContain('flex-col');
     expect(layout?.className).toContain('md:flex-row');
+  });
+
+  it('offers the way out for someone who forgot the password, a thumb tall', async () => {
+    await renderLogin();
+
+    const link = screen.getByRole('link', { name: 'Esqueci minha senha' });
+
+    expect(link).toHaveAttribute('href', '/esqueci-senha');
+    // Tailwind's min-h-11 is 2.75rem = 44px, the floor for a touch target.
+    expect(link.className).toMatch(/\bmin-h-11\b/);
   });
 
   it('keeps the button inside the safe area and uses the dynamic viewport height', async () => {

@@ -6,3 +6,6 @@
  * startup, with a message someone can act on. A type here would only move a
  * missing variable from a loud failure to a silent `undefined`.
  */
+
+/** The version of `package.json`, put in by the Vite config at build time. */
+declare const __APP_VERSION__: string;

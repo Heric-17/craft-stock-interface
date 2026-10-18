@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 
 import tailwindcss from '@tailwindcss/vite';
@@ -30,6 +31,16 @@ function validateEnvironment(mode: string): Plugin {
     },
   };
 }
+
+/**
+ * The version in `package.json`, written into the bundle as `__APP_VERSION__`. Read
+ * here, at build time, so the screen that shows it never carries a copy to forget.
+ */
+const APP_VERSION = (
+  JSON.parse(readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8')) as {
+    version: string;
+  }
+).version;
 
 /** The mode `npm run dev:https` runs in. */
 const HTTPS_MODE = 'https';
@@ -75,6 +86,9 @@ export default defineConfig(({ mode }) => ({
     ...(mode === HTTPS_MODE ? [basicSsl()] : []),
   ],
   ...httpsDevServer(mode),
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

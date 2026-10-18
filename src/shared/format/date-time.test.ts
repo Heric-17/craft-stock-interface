@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { businessDayNumber, formatDateTime, InvalidDateValueError } from './date-time';
+import {
+  businessDayNumber,
+  formatBusinessDay,
+  formatClock,
+  formatDateTime,
+  InvalidDateValueError,
+} from './date-time';
 
 /** A fixed afternoon in Sao Paulo, so the relative wording has a today. */
 const NOW = new Date('2026-10-12T17:00:00-03:00');
@@ -71,5 +77,38 @@ describe('businessDayNumber', () => {
     expect(businessDayNumber('2026-02-01T00:30:00Z')).not.toBe(
       businessDayNumber('2026-02-01T12:00:00-03:00'),
     );
+  });
+});
+
+describe('formatBusinessDay', () => {
+  it('says today and yesterday, and no further back than that', () => {
+    expect(formatBusinessDay('2026-10-12T00:05:00-03:00', NOW)).toBe('Hoje');
+    expect(formatBusinessDay('2026-10-11T23:59:00-03:00', NOW)).toBe('Ontem');
+    expect(formatBusinessDay('2026-10-10T10:18:00-03:00', NOW)).toBe('10 out');
+  });
+
+  it('writes the year once it is not this one', () => {
+    expect(formatBusinessDay('2026-06-12T16:45:00-03:00', NOW)).toBe('12 jun');
+    expect(formatBusinessDay('2025-06-12T16:45:00-03:00', NOW)).toBe('12 jun 2025');
+  });
+
+  it('reads the day in the calendar of Sao Paulo, not in UTC', () => {
+    expect(formatBusinessDay(new Date('2026-02-01T00:30:00Z'), NOW)).toBe('31 jan');
+  });
+
+  it('refuses a value that is not a date', () => {
+    expect(() => formatBusinessDay('not-a-date', NOW)).toThrow(InvalidDateValueError);
+  });
+});
+
+describe('formatClock', () => {
+  it('writes the time of day in Sao Paulo with both digits', () => {
+    expect(formatClock('2026-10-12T14:32:00-03:00')).toBe('14:32');
+    expect(formatClock('2026-10-12T09:05:00-03:00')).toBe('09:05');
+    expect(formatClock('2026-10-12T00:00:00-03:00')).toBe('00:00');
+  });
+
+  it('does not use the zone of the machine', () => {
+    expect(formatClock('2026-02-01T00:30:00Z')).toBe('21:30');
   });
 });
